@@ -14,7 +14,7 @@ PO_MAPPING_KEY = ""
 
 # ===
 # Set up logging
-logger_name = "Excel Processor"
+logger_name = "Excel Helper"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -23,7 +23,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class ExcelProcessor:
+class ExcelHelper:
     """Processor for handling Excel file operations.
 
     Initializes with a file path and source type, reads rows from the file,

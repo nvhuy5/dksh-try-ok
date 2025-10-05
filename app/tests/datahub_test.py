@@ -2,17 +2,17 @@ import pytest
 from pathlib import Path
 import unittest
 from unittest.mock import patch, MagicMock, AsyncMock
-from fastapi_celery.template_processors.file_processors import (
+from fastapi_celery.processors.file_processors import (
     excel_processor,
     pdf_processor,
     txt_processor,
 )
 from fastapi_celery.utils.ext_extraction import FileExtensionProcessor
-from fastapi_celery.template_processors.file_processor import FileProcessor
+from app.fastapi_celery.processors.processor_base import ProcessorBase
 from fastapi_celery.models.class_models import DocumentType, PODataParsed, StepOutput, StatusEnum
 import importlib
 from fastapi_celery.utils.middlewares import request_context
-from fastapi_celery.models.traceability_models import TraceabilityContextModel
+from app.fastapi_celery.models.tracking_models import TrackingModel
 
 
 class TestFileProcessor(unittest.IsolatedAsyncioTestCase):
@@ -31,7 +31,7 @@ class TestFileProcessor(unittest.IsolatedAsyncioTestCase):
             None
         """
         self.file_path = "/tmp/testfile.pdf"
-        self.processor = FileProcessor(self.file_path)
+        self.processor = ProcessorBase(self.file_path)
 
     @patch(
         "fastapi_celery.template_processors.workflow_nodes.extract_metadata.get_context_value"
@@ -72,19 +72,19 @@ class TestFileProcessor(unittest.IsolatedAsyncioTestCase):
         mock_ext_processor.return_value = mock_instance
 
         request_context.traceability_context.set(
-            TraceabilityContextModel(
+            TrackingModel(
                 request_id="test-request-id",
                 workflow_id="test-workflow",
                 document_number="DOC123",
             )
         )
-        from fastapi_celery.template_processors import (
-            file_processor as file_processor_reload,
+        from app.fastapi_celery.processors import (
+            processor_base as file_processor_reload,
         )
 
         importlib.reload(file_processor_reload)
 
-        processor = file_processor_reload.FileProcessor("/tmp/testfile.pdf")
+        processor = file_processor_reload.ProcessorBase("/tmp/testfile.pdf")
         result = processor.extract_metadata()
         self.assertTrue(result)
         self.assertIn("file_path", processor.file_record)

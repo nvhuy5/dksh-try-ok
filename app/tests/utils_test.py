@@ -17,8 +17,8 @@ from fastapi_celery.utils.log_helpers import (
     ServiceLog,
     LogType,
 )
-from fastapi_celery.template_processors.common import pdf_helpers
-from fastapi_celery.models.traceability_models import LogType, ServiceLog
+from app.fastapi_celery.processors.helpers import pdf_helper
+from app.fastapi_celery.models.tracking_models import LogType, ServiceLog
 from fastapi_celery.utils.read_n_write_s3 import any_json_in_s3_prefix, _s3_connectors, read_json_from_s3
 
 
@@ -516,7 +516,7 @@ class TestListObjectsWithPrefix(unittest.TestCase):
 
 def test_build_success_response_returns_valid_podata():
     """Test build_success_response should return PODataParsed with SUCCESS status"""
-    result = pdf_helpers.build_success_response(
+    result = pdf_helper.build_success_response(
         file_path="dummy.pdf",
         document_type=DocumentType.ORDER,
         po_number="PO123",
@@ -540,7 +540,7 @@ def test_build_failed_response_logs_and_sets_failed(caplog):
     exc = ValueError("Simulated error")
 
     with caplog.at_level(logging.ERROR):
-        result = pdf_helpers.build_failed_response(
+        result = pdf_helper.build_failed_response(
             file_path="dummy.pdf",
             document_type=DocumentType.ORDER,
             capacity="test-capacity",

@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, Type
-from template_processors.template_processor import TemplateProcessor
+from app.fastapi_celery.processors.processor_template import ProcessorTemplate
 from connections.be_connection import BEConnector
 from models.class_models import ApiUrl, DocumentType
 from utils import log_helpers
@@ -20,34 +20,34 @@ class ProcessorRegistry:
     # Static mapping of BE template codes to TemplateProcessor enums
     code_to_processor = {
         # PO specific templates
-        "TXT_001_TEMPLATE": TemplateProcessor.TXT_001_TEMPLATE,
-        "TXT_002_TEMPLATE": TemplateProcessor.TXT_002_TEMPLATE,
-        "TXT_003_TEMPLATE": TemplateProcessor.TXT_003_TEMPLATE,
-        "TXT_004_TEMPLATE": TemplateProcessor.TXT_004_TEMPLATE,
-        "XLS_001_TEMPLATE": TemplateProcessor.XLS_001_TEMPLATE,
-        "XLS_002_TEMPLATE": TemplateProcessor.XLS_002_TEMPLATE,
-        "XLSX_001_TEMPLATE": TemplateProcessor.XLSX_001_TEMPLATE,
-        "XLSX_002_TEMPLATE": TemplateProcessor.XLSX_002_TEMPLATE,
-        "XML_001_TEMPLATE": TemplateProcessor.XML_001_TEMPLATE,
-        "CSV_001_TEMPLATE": TemplateProcessor.CSV_001_TEMPLATE,
-        "CSV_002_TEMPLATE": TemplateProcessor.CSV_002_TEMPLATE,
-        "CSV_003_TEMPLATE": TemplateProcessor.CSV_003_TEMPLATE,
-        "CSV_004_TEMPLATE": TemplateProcessor.CSV_004_TEMPLATE,
-        "PDF_001_TEMPLATE" : TemplateProcessor.PDF_001_TEMPLATE,
-        "PDF_002_TEMPLATE" : TemplateProcessor.PDF_002_TEMPLATE,
-        "PDF_003_TEMPLATE" : TemplateProcessor.PDF_003_TEMPLATE,
-        "PDF_004_TEMPLATE" : TemplateProcessor.PDF_004_TEMPLATE,
-        "PDF_005_TEMPLATE" : TemplateProcessor.PDF_005_TEMPLATE,
-        "PDF_006_TEMPLATE" : TemplateProcessor.PDF_006_TEMPLATE,
-        "PDF_007_TEMPLATE" : TemplateProcessor.PDF_007_TEMPLATE,
-        "PDF_008_TEMPLATE" : TemplateProcessor.PDF_008_TEMPLATE,
+        "TXT_001_TEMPLATE": ProcessorTemplate.TXT_001_TEMPLATE,
+        "TXT_002_TEMPLATE": ProcessorTemplate.TXT_002_TEMPLATE,
+        "TXT_003_TEMPLATE": ProcessorTemplate.TXT_003_TEMPLATE,
+        "TXT_004_TEMPLATE": ProcessorTemplate.TXT_004_TEMPLATE,
+        "XLS_001_TEMPLATE": ProcessorTemplate.XLS_001_TEMPLATE,
+        "XLS_002_TEMPLATE": ProcessorTemplate.XLS_002_TEMPLATE,
+        "XLSX_001_TEMPLATE": ProcessorTemplate.XLSX_001_TEMPLATE,
+        "XLSX_002_TEMPLATE": ProcessorTemplate.XLSX_002_TEMPLATE,
+        "XML_001_TEMPLATE": ProcessorTemplate.XML_001_TEMPLATE,
+        "CSV_001_TEMPLATE": ProcessorTemplate.CSV_001_TEMPLATE,
+        "CSV_002_TEMPLATE": ProcessorTemplate.CSV_002_TEMPLATE,
+        "CSV_003_TEMPLATE": ProcessorTemplate.CSV_003_TEMPLATE,
+        "CSV_004_TEMPLATE": ProcessorTemplate.CSV_004_TEMPLATE,
+        "PDF_001_TEMPLATE" : ProcessorTemplate.PDF_001_TEMPLATE,
+        "PDF_002_TEMPLATE" : ProcessorTemplate.PDF_002_TEMPLATE,
+        "PDF_003_TEMPLATE" : ProcessorTemplate.PDF_003_TEMPLATE,
+        "PDF_004_TEMPLATE" : ProcessorTemplate.PDF_004_TEMPLATE,
+        "PDF_005_TEMPLATE" : ProcessorTemplate.PDF_005_TEMPLATE,
+        "PDF_006_TEMPLATE" : ProcessorTemplate.PDF_006_TEMPLATE,
+        "PDF_007_TEMPLATE" : ProcessorTemplate.PDF_007_TEMPLATE,
+        "PDF_008_TEMPLATE" : ProcessorTemplate.PDF_008_TEMPLATE,
         # Masterdata specific templates
-        "TXT_MASTERDATA_TEMPLATE": TemplateProcessor.TXT_MASTERADATA_TEMPLATE,
-        "EXCEL_MASTERDATA_TEMPLATE": TemplateProcessor.EXCEL_MASTERADATA_TEMPLATE,
+        "TXT_MASTERDATA_TEMPLATE": ProcessorTemplate.TXT_MASTERADATA_TEMPLATE,
+        "EXCEL_MASTERDATA_TEMPLATE": ProcessorTemplate.EXCEL_MASTERADATA_TEMPLATE,
     }
 
     @classmethod
-    async def get_processor_for_file(cls, file_processor) -> TemplateProcessor:
+    async def get_processor_for_file(cls, file_processor) -> ProcessorTemplate:
         """
         Calls BE to get processor mapping for this file, returns processor instance.
 
@@ -134,5 +134,5 @@ class ProcessorRegistry:
             raise
 
     @classmethod
-    def _map_code_to_processor(cls, code: str) -> Optional[Type[TemplateProcessor]]:
+    def _map_code_to_processor(cls, code: str) -> Optional[Type[ProcessorTemplate]]:
         return cls.code_to_processor.get(code)

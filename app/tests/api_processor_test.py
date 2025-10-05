@@ -9,7 +9,7 @@ from fastapi_celery.models.class_models import (
     StopTaskRequest,
     StatusEnum,
 )
-from fastapi_celery.models.traceability_models import LogType, ServiceLog
+from app.fastapi_celery.models.tracking_models import LogType, ServiceLog
 from fastapi_celery.connections.be_connection import BEConnector
 from fastapi_celery.celery_worker.celery_config import celery_app
 

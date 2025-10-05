@@ -6,7 +6,7 @@ from utils import log_helpers, ext_extraction
 
 # ===
 # Set up logging
-logger_name = "TXT Processor"
+logger_name = "Txt Helper"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -15,7 +15,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class BaseTXTProcessor:
+class TxtHelper:
     """
     Base class for TXT processors. Handles file extraction and common operations.
     """

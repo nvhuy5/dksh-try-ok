@@ -1,6 +1,6 @@
 import config_loader
 from models.class_models import DocumentType, StepOutput, StatusEnum
-from models.traceability_models import ServiceLog, LogType
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
 from utils import log_helpers, read_n_write_s3
 from pathlib import Path
 import logging
@@ -9,7 +9,7 @@ from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 

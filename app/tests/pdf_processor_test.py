@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from fastapi_celery.models.class_models import SourceType, PODataParsed, StatusEnum
-from fastapi_celery.template_processors.file_processors.pdf_processor import (
+from fastapi_celery.processors.file_processors.pdf_processor import (
     Pdf001Template,
     Pdf002Template,
     Pdf004Template,

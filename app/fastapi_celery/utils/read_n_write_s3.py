@@ -11,24 +11,24 @@ from pydantic import BaseModel
 # Local Application Imports
 from utils import log_helpers
 from connections import aws_connection
-from models.traceability_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from utils.middlewares.request_context import get_context_value
 from typing import Optional
 
-# ===
-# === Try to retrieve all traceability attributes when an object created
-request_id = get_context_value("request_id")
-traceability_context_values = {
-    key: val
-    for key in [
-        "file_path",
-        "workflow_name",
-        "workflow_id",
-        "document_number",
-        "document_type",
-    ]
-    if (val := get_context_value(key)) is not None
-}
+# # ===
+# # === Try to retrieve all traceability attributes when an object created
+# request_id = get_context_value("request_id")
+# traceability_context_values = {
+#     key: val
+#     for key in [
+#         "file_path",
+#         "workflow_name",
+#         "workflow_id",
+#         "document_number",
+#         "document_type",
+#     ]
+#     if (val := get_context_value(key)) is not None
+# }
 
 # === Set up logging ===
 logger_name = "Read and Write to S3"
@@ -66,53 +66,51 @@ def put_object(client, bucket_name: str, object_name: str, uploading_data) -> di
         if isinstance(uploading_data, (io.BytesIO, io.StringIO)):
             uploading_data.seek(0)
             client.upload_fileobj(uploading_data, Bucket=bucket_name, Key=object_name)
-            logger.info(
-                f"Buffer uploaded successfully to {bucket_name}/{object_name}.",
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.TASK,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            # logger.info(
+            #     f"Buffer uploaded successfully to {bucket_name}/{object_name}.",
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.TASK,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return {"status": "Success"}
         elif isinstance(uploading_data, str):
-            client.upload_file(
-                Filename=uploading_data, Bucket=bucket_name, Key=object_name
-            )
-            logger.info(
-                f"File '{uploading_data}' uploaded successfully to {bucket_name}/{object_name}.",
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.TASK,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            client.upload_file(Filename=uploading_data, Bucket=bucket_name, Key=object_name)
+            # logger.info(
+            #     f"File '{uploading_data}' uploaded successfully to {bucket_name}/{object_name}.",
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.TASK,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return {"status": "Success"}
         else:
             msg = "uploading_data must be either a buffer-like object or a file path"
-            logger.error(
-                msg,
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.ERROR,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            # logger.error(
+            #     msg,
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.ERROR,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return {"status": "Failed", "error": msg}
 
     except (ClientError, BotoCoreError, TypeError) as e:
-        logger.error(
-            f"Error uploading to S3: {type(e).__name__} - {e}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error uploading to S3: {type(e).__name__} - {e}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return {"status": "Failed", "error": str(e)}
 
 
@@ -137,26 +135,26 @@ def get_object(client, bucket_name: str, object_name: str) -> io.BytesIO | None:
         response = client.get_object(Bucket=bucket_name, Key=object_name)
         data = response["Body"].read()
         buffer = io.BytesIO(data)
-        logger.info(
-            f"Object '{object_name}' read successfully from bucket '{bucket_name}'.",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Object '{object_name}' read successfully from bucket '{bucket_name}'.",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return buffer
     except (ClientError, BotoCoreError) as e:
-        logger.error(
-            f"Error reading object '{bucket_name}/{object_name}': {type(e).__name__} - {e}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error reading object '{bucket_name}/{object_name}': {type(e).__name__} - {e}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return None
 
 
@@ -188,15 +186,15 @@ def copy_object_between_buckets(
         copy_source = {"Bucket": source_bucket, "Key": source_key}
 
         client.copy_object(CopySource=copy_source, Bucket=dest_bucket, Key=dest_key)
-        logger.info(
-            f"Object copied successfully to {dest_bucket}/{dest_key}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Object copied successfully to {dest_bucket}/{dest_key}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
 
         return {
             "status": "Success",
@@ -205,15 +203,15 @@ def copy_object_between_buckets(
         }
 
     except (ClientError, BotoCoreError) as e:
-        logger.error(
-            f"Error copying object: {type(e).__name__} - {e}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error copying object: {type(e).__name__} - {e}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return {
             "status": "Failed",
             "error": str(e),
@@ -242,37 +240,37 @@ def object_exists(
     """
     try:
         response = client.head_object(Bucket=bucket_name, Key=object_name)
-        logger.info(
-            f"Metadata for object '{object_name}' retrieved successfully from bucket '{bucket_name}'.",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Metadata for object '{object_name}' retrieved successfully from bucket '{bucket_name}'.",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return True, response
     except ClientError as e:
         if e.response["Error"]["Code"] == "404":
-            logger.warning(
-                f"Object '{object_name}' not found in bucket '{bucket_name}'.",
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.ERROR,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            # logger.warning(
+            #     f"Object '{object_name}' not found in bucket '{bucket_name}'.",
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.ERROR,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return False, None
-        logger.error(
-            f"Error accessing object metadata: {type(e).__name__} - {e}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error accessing object metadata: {type(e).__name__} - {e}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return False, None
 
 
@@ -331,15 +329,15 @@ def write_json_to_s3(
         Exception: If S3 connection or JSON upload fails.
     """
     try:
-        logger.info(
-            f"Start uploading JSON to S3. File record: {file_record}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Start uploading JSON to S3. File record: {file_record}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
 
         # Determine extension
         ext = ".json"
@@ -370,15 +368,15 @@ def write_json_to_s3(
         client = s3_connector.client
         bucket = s3_connector.bucket_name
     except Exception as e:
-        logger.error(
-            f"Error when creating S3 connection: {str(e)}\n{traceback.format_exc()}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error when creating S3 connection: {str(e)}\n{traceback.format_exc()}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return {
             "status": "Failed",
             "error": "S3 connection failed",
@@ -404,30 +402,30 @@ def write_json_to_s3(
         upload_result = put_object(client, bucket, object_name, buffer)
         if upload_result.get("status") == "Failed":
             error_message = upload_result.get("error", "Unknown error")
-            logger.error(
-                f"Upload failed: {error_message}",
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.ERROR,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            # logger.error(
+            #     f"Upload failed: {error_message}",
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.ERROR,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return {
                 "status": "Failed",
                 "error": error_message,
                 "file_info": file_record,
             }
 
-        logger.info(
-            f"JSON uploaded successfully to {bucket}/{object_name}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"JSON uploaded successfully to {bucket}/{object_name}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return {
             "json_data": json_data,
             "file_info": file_record,
@@ -439,15 +437,15 @@ def write_json_to_s3(
         }
 
     except Exception as e:
-        logger.error(
-            f"Upload failed: {str(e)}\n{traceback.format_exc()}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Upload failed: {str(e)}\n{traceback.format_exc()}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return {"status": "Failed", "error": "Upload failed", "file_info": file_record}
 
 
@@ -463,15 +461,15 @@ def read_json_from_s3(bucket_name: str, object_name: str) -> dict | None:
         dict | None: Parsed JSON content, or None if not found or error.
     """
     try:
-        logger.info(
-            f"Start reading JSON from S3. Bucket: {bucket_name}, Key: {object_name}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Start reading JSON from S3. Bucket: {bucket_name}, Key: {object_name}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
 
         # Get or create S3Connector
         if bucket_name not in _s3_connectors:
@@ -487,57 +485,57 @@ def read_json_from_s3(bucket_name: str, object_name: str) -> dict | None:
         bucket = s3_connector.bucket_name
 
     except Exception as e:
-        logger.error(
-            f"Error when creating S3 connection: {str(e)}\n{traceback.format_exc()}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error when creating S3 connection: {str(e)}\n{traceback.format_exc()}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return None
 
     try:
         # Get the object
         buffer = get_object(client, bucket_name=bucket, object_name=object_name)
         if buffer is None:
-            logger.warning(
-                f"Object not found in S3: {bucket}/{object_name}",
-                extra={
-                    "service": ServiceLog.FILE_STORAGE,
-                    "log_type": LogType.WARNING,
-                    **traceability_context_values,
-                    "traceability": request_id,
-                },
-            )
+            # logger.warning(
+            #     f"Object not found in S3: {bucket}/{object_name}",
+            #     extra={
+            #         "service": ServiceLog.FILE_STORAGE,
+            #         "log_type": LogType.WARNING,
+            #         **traceability_context_values,
+            #         "traceability": request_id,
+            #     },
+            # )
             return None
 
         # Parse JSON
         content = buffer.read().decode("utf-8")
         data = json.loads(content)
 
-        logger.info(
-            f"Successfully read and parsed JSON from S3: {bucket}/{object_name}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.TASK,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.info(
+        #     f"Successfully read and parsed JSON from S3: {bucket}/{object_name}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.TASK,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return data
 
     except Exception as e:
-        logger.error(
-            f"Error reading/parsing JSON from S3: {str(e)}\n{traceback.format_exc()}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error reading/parsing JSON from S3: {str(e)}\n{traceback.format_exc()}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return None
 
 
@@ -571,13 +569,13 @@ def list_objects_with_prefix(bucket_name: str, prefix: str) -> list:
         return keys
 
     except Exception as e:
-        logger.error(
-            f"Error listing objects with prefix '{prefix}' in bucket '{bucket_name}': {e}",
-            extra={
-                "service": ServiceLog.FILE_STORAGE,
-                "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "traceability": request_id,
-            },
-        )
+        # logger.error(
+        #     f"Error listing objects with prefix '{prefix}' in bucket '{bucket_name}': {e}",
+        #     extra={
+        #         "service": ServiceLog.FILE_STORAGE,
+        #         "log_type": LogType.ERROR,
+        #         **traceability_context_values,
+        #         "traceability": request_id,
+        #     },
+        # )
         return []

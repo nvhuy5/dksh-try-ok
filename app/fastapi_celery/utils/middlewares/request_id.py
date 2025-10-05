@@ -28,7 +28,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
 
         # Set context with request_id (you can pass document_number later if needed)
-        set_context_values(request_id=request_id)
+        # set_context_values(request_id=request_id)
 
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id

@@ -1,6 +1,6 @@
 import logging.config
 import config_loader
-from models.traceability_models import LogType, ServiceLog
+from models.tracking_models import LogType, ServiceLog
 
 LOG_COLORS = {
     "DEBUG": "cyan",

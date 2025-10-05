@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from fastapi_celery.models.class_models import SourceType, PODataParsed
-from fastapi_celery.template_processors.file_processors.csv_processor import (
+from fastapi_celery.processors.file_processors.csv_processor import (
     CSVProcessor,
 )
 from fastapi_celery.utils import ext_extraction

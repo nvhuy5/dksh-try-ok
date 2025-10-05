@@ -7,7 +7,7 @@ from typing import Optional
 from utils import log_helpers, read_n_write_s3
 from connections import aws_connection
 from models.class_models import SourceType, DocumentType
-from models.traceability_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType, TrackingModel
 
 import config_loader
 from utils.middlewares.request_context import get_context_value, set_context_values
@@ -42,7 +42,7 @@ class FileExtensionProcessor:
         document_type (DocumentType): Determined document type.
     """
 
-    def __init__(self, file_path: str, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """
         Initialize with file path and source type.
 
@@ -53,11 +53,11 @@ class FileExtensionProcessor:
         Raises:
             ValueError: If file_path is not a string or Path.
         """
-        if not isinstance(file_path, (str, Path)):
+        if not isinstance(tracking_model.file_path, (str, Path)):
             raise ValueError("file_path must be a string or Path.")
 
-        self.request_id = get_context_value("request_id")
-        self.file_path = str(file_path)
+        self.tracking_model = tracking_model
+        self.file_path = str(tracking_model.file_path)
         self.file_path_parent = None
         self.source = source
         self.object_buffer = None
@@ -82,8 +82,7 @@ class FileExtensionProcessor:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.TASK,
-                "file_path": self.file_path,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
         if self.source == SourceType.LOCAL:
@@ -130,8 +129,7 @@ class FileExtensionProcessor:
                     extra={
                         "service": ServiceLog.METADATA_EXTRACTION,
                         "log_type": LogType.ERROR,
-                        "file_path": self.file_path,
-                        "traceability": self.request_id,
+                        "data": self.tracking_model,
                     },
                 )
                 raise FileNotFoundError(f"S3 object '{self.file_path}' not found.")
@@ -146,8 +144,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.ERROR,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             raise FileNotFoundError(
@@ -169,8 +166,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.ERROR,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             raise ValueError(f"File '{self.file_path}' has no extension.")
@@ -181,8 +177,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.ERROR,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             raise TypeError(
@@ -195,8 +190,7 @@ class FileExtensionProcessor:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.TASK,
-                "file_path": self.file_path,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
 
@@ -226,8 +220,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.TASK,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             return f"{size_mb:.2f} MB"
@@ -238,8 +231,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.TASK,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             return f"{size_kb:.2f} KB"
@@ -263,8 +255,7 @@ class FileExtensionProcessor:
                     extra={
                         "service": ServiceLog.METADATA_EXTRACTION,
                         "log_type": LogType.ERROR,
-                        "file_path": self.file_path,
-                        "traceability": self.request_id,
+                        "data": self.tracking_model,
                     },
                 )
                 raise ValueError(
@@ -276,8 +267,7 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.TASK,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             document_type = (
@@ -287,7 +277,7 @@ class FileExtensionProcessor:
             )
 
             # Safely publish the document_type only if request_id is present
-            if self.request_id is not None:
+            if self.tracking_model.request_id is not None:
                 set_context_values(document_type=document_type)
 
             return document_type
@@ -298,105 +288,75 @@ class FileExtensionProcessor:
                 extra={
                     "service": ServiceLog.METADATA_EXTRACTION,
                     "log_type": LogType.ERROR,
-                    "file_path": self.file_path,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             raise ValueError(
                 f"Error determining document type from path '{self.file_path}': {e}"
             )
 
-    @staticmethod
-    def _get_target_bucket(document_type: DocumentType) -> Optional[str]:
-        request_id = get_context_value("request_id")
-        project_name = get_context_value("project_name")
-        traceability_context_values = {
-            key: val
-            for key in [
-                "file_path",
-                "workflow_name",
-                "workflow_id",
-                "document_number",
-                "document_type",
-            ]
-            if (val := get_context_value(key)) is not None
-        }
+    def _get_target_bucket(self) -> Optional[str]:
         # Determine bucket name based on document type
         bucket_name = None
 
-        if document_type == DocumentType.ORDER:
-            if project_name and project_name.upper() == "DKSH_TW":
+        if self.document_type == DocumentType.ORDER:
+            if self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_TW":
                 bucket_name = config_loader.get_config_value(
                     "s3_buckets", "datahub_s3_process_data_tw"
                 )
-            elif project_name and project_name.upper() == "DKSH_VN":
+            elif self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_VN":
                 bucket_name = config_loader.get_config_value(
                     "s3_buckets", "datahub_s3_process_data_vn"
                 )
 
-        elif document_type == DocumentType.MASTER_DATA:
+        elif self.document_type == DocumentType.MASTER_DATA:
             sap_masterdata = get_context_value("sap_masterdata")
             if sap_masterdata:
                 bucket_name = config_loader.get_config_value(
                     "s3_buckets", "sap_masterdata_bucket"
                 )
-            elif project_name and project_name.upper() == "DKSH_TW":
+            elif self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_TW":
                 bucket_name = config_loader.get_config_value(
                     "s3_buckets", "tw_masterdata_bucket"
                 )
-            elif project_name and project_name.upper() == "DKSH_VN":
+            elif self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_VN":
                 bucket_name = config_loader.get_config_value(
                     "s3_buckets", "vn_masterdata_bucket"
                 )
         else:
             logger.warning(
-                f"Unknown document type: {document_type}",
+                f"Unknown document type: {self.document_type}",
                 extra={
                     "service": ServiceLog.FILE_STORAGE,
                     "log_type": LogType.WARNING,
-                    **traceability_context_values,
-                    "traceability": request_id,
+                    "data": self.tracking_model,
                 },
             )
             return None
 
         return bucket_name
 
-    @staticmethod
-    def _get_raw_bucket() -> Optional[str]:
+
+    def _get_raw_bucket(self) -> Optional[str]:
         """
         Get raw_bucket base on project.
         """
-        request_id = get_context_value("request_id")
-        project_name = get_context_value("project_name")
-        traceability_context_values = {
-            key: val
-            for key in [
-                "file_path",
-                "workflow_name",
-                "workflow_id",
-                "document_number",
-                "document_type",
-            ]
-            if (val := get_context_value(key)) is not None
-        }
         bucket_name = None
-        if project_name and project_name.upper() == "DKSH_TW":
+        if self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_TW":
             bucket_name = config_loader.get_config_value(
                 "s3_buckets", "datahub_s3_raw_data_tw"
             )
-        elif project_name and project_name.upper() == "DKSH_VN":
+        elif self.tracking_model.project_name and self.tracking_model.project_name.upper() == "DKSH_VN":
             bucket_name = config_loader.get_config_value(
                 "s3_buckets", "datahub_s3_raw_data_vn"
             )
         else:
             logger.warning(
-                f"Unknown project_name: {project_name}",
+                f"Unknown project_name: {self.tracking_model.project_name}",
                 extra={
                     "service": ServiceLog.FILE_STORAGE,
                     "log_type": LogType.WARNING,
-                    **traceability_context_values,
-                    "traceability": request_id,
+                    "data": self.tracking_model,
                 },
             )
         return bucket_name

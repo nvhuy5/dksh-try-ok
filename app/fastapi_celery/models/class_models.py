@@ -198,33 +198,37 @@ class PathEncoder(json.JSONEncoder):  # pragma: no cover  # NOSONAR
 
 
 class StepDefinition(BaseModel):  # pragma: no cover  # NOSONAR
-    """Pydantic model representing a step definition.
+    """
+    Pydantic model representing a step definition in a workflow.
 
     Attributes:
         function_name (str): The name of the function to execute.
         data_input (Optional[str]): The input data key, optional.
         data_output (Optional[str]): The output data key, optional.
-        store_materialized_data (bool): Flag to store materialized data, defaults to False.
-        extract_to (Dict[str, str]): Mapping of keys to extract data to, defaults to empty dict.
-        args (Optional[List[str]]): List of argument names, optional.
+        require_data_output (bool): Indicates whether an output key is required.
+        target_store_data (Optional[str]): Optional target name for storing processed data.
+        extract_to (Dict[str, str]): Mapping of keys to extract data to, defaults to an empty dict.
+        args (Optional[List[str]]): List of positional argument names, optional.
+        kwargs (Optional[Dict[str, Any]]): Dictionary of keyword arguments, optional.
 
     Raises:
-        ValueError: If 'store_materialized_data' is True but 'data_output' is not set.
+        ValueError: If `require_data_output` is True but `data_output` is not provided.
     """
 
     function_name: str
     data_input: Optional[str] = None
     data_output: Optional[str] = None
-    store_materialized_data: bool = False
+    require_data_output: bool = False
+    target_store_data: Optional[str] = None
     extract_to: Dict[str, str] = {}
     args: Optional[List[str]] = None
     kwargs: Optional[Dict[str, Any]] = None
 
     @model_validator(mode="after")
     def validate_constraints(cls, values):
-        if values.store_materialized_data and not values.data_output:
+        if values.require_data_output and not values.data_output:
             raise ValueError(
-                "'store_materialized_data' requires 'data_output' to be set"
+                "Invalid configuration: 'data_output' must be provided when 'require_data_output' is True."
             )
         return values
 
@@ -295,3 +299,50 @@ class PODataParsed(BaseModel):
 
     def __repr__(self) -> str:
         return self.model_dump_json(indent=2, exclude_none=True)
+
+
+class ApiConfig(BaseModel):
+    url: Optional[str] = None
+    request: Optional[Dict[str, Any]] = None
+    response: Optional[Dict[str, Any]] = None
+
+
+class SessionConfig(BaseModel):
+    session_start_api: ApiConfig
+    session_finish_api: ApiConfig
+
+
+class WorkflowDetailConfig(BaseModel):
+    filter_api: ApiConfig
+    metadata_api: Optional[SessionConfig] = None
+
+
+class StepDetailConfig(BaseModel):
+    Step_start_api: ApiConfig
+    Step_finish_api: ApiConfig
+
+
+class StepDetail(BaseModel):
+    step: Optional[Dict[str, Any]] = None
+    config_api: Optional[Dict[str, Any]] = None
+    metadata_api: Optional[StepDetailConfig] = None
+
+
+class ContextData(BaseModel):
+    request_id: str
+    file_path: Optional[str] = None
+    original_file_path: Path
+    headers: List[str] | Dict[str, Any]
+    po_number: Optional[str]
+    items: List[Dict[str, Any]] | Dict[str, Any]
+    metadata: Optional[Dict[str, str]]
+    project_name: Optional[str] = None
+    source_name: Optional[str] = None
+    document_type: DocumentType
+    source_type: SourceType
+    step_status: Optional[StatusEnum]
+    step_messages: Optional[List[str]] = None
+    capacity: str
+    step_detail: Optional[List[StepDetail]] = None
+    workflow_detail: Optional[WorkflowDetailConfig] = None
+    json_output: Optional[str] = None

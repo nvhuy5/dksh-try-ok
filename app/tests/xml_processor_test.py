@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from xml.etree.ElementTree import Element
-from fastapi_celery.template_processors.file_processors.xml_processor import (
+from fastapi_celery.processors.file_processors.xml_processor import (
     XMLProcessor,
 )
 from fastapi_celery.models.class_models import SourceType, PODataParsed

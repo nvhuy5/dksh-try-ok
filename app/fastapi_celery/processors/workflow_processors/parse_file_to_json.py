@@ -2,13 +2,13 @@ import logging
 import traceback
 from utils import log_helpers
 from models.class_models import StatusEnum, StepOutput
-from models.traceability_models import ServiceLog, LogType
-from template_processors.processor_registry import ProcessorRegistry
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from processors.processor_registry import ProcessorRegistry
 from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 

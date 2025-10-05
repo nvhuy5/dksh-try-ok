@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 import traceback
 import logging
 
-from models.traceability_models import ServiceLog, LogType
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
 from connections.redis_connection import RedisConnector
 from utils import log_helpers
 from utils.middlewares.request_context import get_context_value

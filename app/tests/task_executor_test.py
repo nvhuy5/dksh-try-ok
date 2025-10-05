@@ -6,7 +6,7 @@ from fastapi_celery.models.class_models import StartStep, MasterDataParsed, Stat
 from typing import Dict, Any
 from fastapi_celery.utils.middlewares import request_context
 from fastapi_celery.celery_worker.celery_task import update_masterdata_proceed_output
-from fastapi_celery.template_processors.common import template_utils
+from app.fastapi_celery.processors.helpers import template_helper
 # === Test for task_execute ===
 
 
@@ -85,7 +85,7 @@ async def test_handle_task_success(
     """Test successful execution of handle_task with mocked step definitions."""
     mock_parse_data.return_value = DummyModel()
     mock_set_context.return_value = None
-    mock_get_context.return_value = request_context.TraceabilityContextModel(request_id="test-request-id")
+    mock_get_context.return_value = request_context.TrackingModel(request_id="test-request-id")
     mock_config.side_effect = lambda section, key: {
         "converted_files": "test-bucket",
         "materialized_step_data_loc": "materialized/data/path"
@@ -215,7 +215,7 @@ async def test_handle_task_session_fail(
         None
     """
     mock_set_context.return_value = None
-    mock_get_context.return_value = request_context.TraceabilityContextModel(request_id="test-request-id")
+    mock_get_context.return_value = request_context.TrackingModel(request_id="test-request-id")
     mock_config.side_effect = lambda section, key: "test-bucket"
 
     mock_instance = MagicMock()

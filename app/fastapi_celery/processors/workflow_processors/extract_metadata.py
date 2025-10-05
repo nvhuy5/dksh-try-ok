@@ -3,13 +3,13 @@ import logging
 import traceback
 from datetime import datetime, timezone
 from utils import log_helpers, ext_extraction
-from models.traceability_models import ServiceLog, LogType
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
 from models.class_models import StatusEnum, StepOutput
 from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -28,20 +28,8 @@ def extract_metadata(self) -> bool:
         bool: True if metadata extraction is successful, False otherwise.
     """
     try:
-        # === Try to retrieve all traceability attributes when an object created
-        self.request_id = get_context_value("request_id")
-        self.traceability_context_values = {
-            key: val
-            for key in ["workflow_name", "workflow_id", "document_number"]
-            if (val := get_context_value(key)) is not None
-        }
-        logger.debug(
-            f"Function: {__name__}\n"
-            f"RequestID: {self.request_id}\n"
-            f"TraceabilityContext: {self.traceability_context_values}"
-        )
 
-        file_processor = ext_extraction.FileExtensionProcessor(self.file_path)
+        file_processor = ext_extraction.FileExtensionProcessor(self.tracking_model)
 
         # Publish document_type for traceability
         self.document_type = file_processor.document_type
@@ -60,10 +48,7 @@ def extract_metadata(self) -> bool:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.TASK,
-                "file_path": self.file_path,
-                **self.traceability_context_values,
-                "document_type": getattr(self, "document_type", None),
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
 
@@ -79,10 +64,7 @@ def extract_metadata(self) -> bool:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.ERROR,
-                "file_path": self.file_path,
-                **self.traceability_context_values,
-                "document_type": getattr(self, "document_type", None),
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
             exc_info=True,
         )
@@ -95,10 +77,7 @@ def extract_metadata(self) -> bool:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.ERROR,
-                "file_path": self.file_path,
-                **self.traceability_context_values,
-                "document_type": getattr(self, "document_type", None),
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
             exc_info=True,
         )
@@ -111,10 +90,7 @@ def extract_metadata(self) -> bool:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.ERROR,
-                "file_path": self.file_path,
-                **self.traceability_context_values,
-                "document_type": getattr(self, "document_type", None),
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
             exc_info=True,
         )

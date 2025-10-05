@@ -4,12 +4,13 @@ from typing import Type
 from dataclasses import dataclass
 
 # Local Application Imports
-from template_processors import file_processors, master_data_processors
+from processors import file_processors, master_processors
 
 
 @dataclass
 class ProcessorMeta:
-    """Metadata for a file processor.
+    """
+    Metadata for a file processor.
 
     Stores configuration details for a specific file processor, including its class,
     description, and input/output types.
@@ -27,7 +28,7 @@ class ProcessorMeta:
     output_type: str
 
 
-class TemplateProcessor(Enum):
+class ProcessorTemplate(Enum):
     """Registry of file processor templates.
 
     Maps template names to `ProcessorMeta` instances for processing specific file
@@ -219,13 +220,13 @@ class TemplateProcessor(Enum):
     # ================================================================== #
     # === Registry the template to specific processor for masterdata === #
     TXT_MASTERADATA_TEMPLATE = ProcessorMeta(
-        cls=master_data_processors.txt_master_data_processor.MasterDataProcessor,
+        cls=master_processors.base_master_processor.BaseMasterProcessor,
         description="TXT layout processor for metadata template",
         input_type="txt",
         output_type="dataframe",
     )
     EXCEL_MASTERADATA_TEMPLATE = ProcessorMeta(
-        cls=master_data_processors.excel_master_data_processor.ExcelMasterdataProcessor,
+        cls=master_processors.excel_master_processor.ExcelMasterProcessor,
         description="Excel layout processor for metadata template",
         input_type="xls or xlsx",
         output_type="dataframe",

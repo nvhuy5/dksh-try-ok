@@ -1,9 +1,9 @@
 import contextvars
 from typing import Optional
-from models.traceability_models import TraceabilityContextModel
+from app.fastapi_celery.models.tracking_models import TrackingModel
 
 # Context variable to store TraceabilityContextModel
-traceability_context: contextvars.ContextVar[Optional[TraceabilityContextModel]] = (
+traceability_context: contextvars.ContextVar[Optional[TrackingModel]] = (
     contextvars.ContextVar("traceability_context", default=None)
 )
 
@@ -19,7 +19,7 @@ def set_context_values(**kwargs) -> None:
     current_context = traceability_context.get()
 
     # Filter only valid fields based on model schema
-    valid_fields = TraceabilityContextModel.model_fields.keys()
+    valid_fields = TrackingModel.model_fields.keys()
     filtered_kwargs = {
         tracing_key: value
         for tracing_key, value in kwargs.items()
@@ -30,12 +30,12 @@ def set_context_values(**kwargs) -> None:
     else:
         if "request_id" not in filtered_kwargs:
             raise ValueError("request_id must be provided if no context is set yet.")
-        updated_context = TraceabilityContextModel(**filtered_kwargs)
+        updated_context = TrackingModel(**filtered_kwargs)
 
     traceability_context.set(updated_context)
 
 
-def get_context() -> Optional[TraceabilityContextModel]:
+def get_context() -> Optional[TrackingModel]:
     """
     Get the current traceability context.
 

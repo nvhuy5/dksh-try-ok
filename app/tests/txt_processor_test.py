@@ -2,10 +2,10 @@ import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 from fastapi_celery.models.class_models import SourceType, PODataParsed
-from fastapi_celery.template_processors.common.txt_file_processor import (
-    BaseTXTProcessor,
+from app.fastapi_celery.processors.helpers.txt_helper import (
+    TxtHelper,
 )
-from fastapi_celery.template_processors.file_processors.txt_processor_new import (
+from fastapi_celery.processors.file_processors.txt_processor_new import (
     Txt001Template,
     Txt002Template,
     Txt003Template,
@@ -80,7 +80,7 @@ class TestBaseTXTProcessor(unittest.TestCase):
         mock_ext_processor_class.return_value = mock_ext_processor
 
         # === Initialize BaseTXTProcessor ===
-        processor = BaseTXTProcessor(
+        processor = TxtHelper(
             file_path=Path("fake/path/to/file.txt"), source=SourceType.LOCAL
         )
 

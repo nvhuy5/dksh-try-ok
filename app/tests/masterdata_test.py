@@ -6,8 +6,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from tempfile import NamedTemporaryFile
 from openpyxl import Workbook
-from fastapi_celery.template_processors.master_data_processors.excel_master_data_processor import (
-    ExcelMasterdataProcessor,
+from app.fastapi_celery.processors.master_processors.excel_master_processor import (
+    ExcelMasterProcessor,
 )
 from fastapi_celery.models.class_models import (
     DocumentType,
@@ -16,11 +16,11 @@ from fastapi_celery.models.class_models import (
     StatusEnum,
 )
 from fastapi_celery.models.class_models import PathEncoder, SourceType
-from fastapi_celery.template_processors.master_data_processors import (
-    txt_master_data_processor,
+from app.fastapi_celery.processors.master_processors import (
+    base_master_processor,
 )
-from fastapi_celery.template_processors.workflow_nodes.masterdata_validation import (
-    MasterDataValidation,
+from app.fastapi_celery.processors.workflow_processors.master_validation import (
+    MasterValidation,
 )
 
 
@@ -47,7 +47,7 @@ def test_masterdata_itemvalue(base_path: Path) -> None:
         None
     """
     file_path = base_path / "SAP_Master_data.txt"
-    masterdata = txt_master_data_processor.MasterDataProcessor(
+    masterdata = base_master_processor.BaseMasterProcessor(
         file_path, SourceType.LOCAL
     ).parse_file_to_json()
 
@@ -107,7 +107,7 @@ def test_parse_file_to_json_from_s3(mock_processor_class: MagicMock) -> None:
     mock_processor.object_buffer.seek.return_value = None
     mock_processor_class.return_value = mock_processor
 
-    processor = txt_master_data_processor.MasterDataProcessor(
+    processor = base_master_processor.BaseMasterProcessor(
         file_path=Path("s3://dummy-path/sample.txt"), source=SourceType.S3
     )
     result = processor.parse_file_to_json()
@@ -132,7 +132,7 @@ def test_parse_file_to_json_from_real_file(base_path: Path) -> None:
         None
     """
     file_path = base_path / "SAP_Master_data.txt"
-    processor = txt_master_data_processor.MasterDataProcessor(
+    processor = base_master_processor.BaseMasterProcessor(
         file_path, SourceType.LOCAL
     )
     result = processor.parse_file_to_json()
@@ -170,7 +170,7 @@ def test_header_validation_success(sample_masterdata_parsed):
         {"name": "date", "posidx": 3},
     ]
 
-    validator = MasterDataValidation(sample_masterdata_parsed)
+    validator = MasterValidation(sample_masterdata_parsed)
     result = validator.header_validation(schema)
 
     assert result.step_status == StatusEnum.SUCCESS
@@ -185,7 +185,7 @@ def test_header_validation_mismatch(sample_masterdata_parsed):
         {"name": "date", "posidx": 3},
     ]
 
-    validator = MasterDataValidation(sample_masterdata_parsed)
+    validator = MasterValidation(sample_masterdata_parsed)
     result = validator.header_validation(schema)
 
     assert result.step_status == StatusEnum.FAILED
@@ -200,7 +200,7 @@ def test_data_validation_success(sample_masterdata_parsed):
         {"name": "date", "datatype": "timestamp", "nullable": False},
     ]
 
-    validator = MasterDataValidation(sample_masterdata_parsed)
+    validator = MasterValidation(sample_masterdata_parsed)
     result = validator.data_validation(schema)
 
     assert result.step_status == StatusEnum.SUCCESS
@@ -212,7 +212,7 @@ def test_data_validation_missing_column(sample_masterdata_parsed):
         {"name": "nonexistent", "datatype": "string", "nullable": True},
     ]
 
-    validator = MasterDataValidation(sample_masterdata_parsed)
+    validator = MasterValidation(sample_masterdata_parsed)
     result = validator.data_validation(schema)
 
     assert result.step_status == StatusEnum.FAILED
@@ -233,7 +233,7 @@ def test_data_validation_null_field():
     )
 
     schema = [{"name": "id", "datatype": "int", "nullable": False}]
-    validator = MasterDataValidation(parsed)
+    validator = MasterValidation(parsed)
     result = validator.data_validation(schema)
 
     assert result.step_status == StatusEnum.FAILED
@@ -254,7 +254,7 @@ def test_data_validation_type_error():
     )
 
     schema = [{"name": "amount", "datatype": "float", "nullable": False}]
-    validator = MasterDataValidation(parsed)
+    validator = MasterValidation(parsed)
     result = validator.data_validation(schema)
 
     assert result.step_status == StatusEnum.FAILED
@@ -285,7 +285,7 @@ class TestExcelMasterdataProcessor(unittest.TestCase):
         self.file_path.unlink()  # Delete the temp file
 
     def test_parse_file_to_json(self):
-        processor = ExcelMasterdataProcessor(
+        processor = ExcelMasterProcessor(
             file_path=self.file_path, source=SourceType.LOCAL
         )
         parsed_data = processor.parse_file_to_json()

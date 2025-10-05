@@ -3,7 +3,7 @@ import traceback
 import logging
 from utils import log_helpers
 from models.class_models import MasterDataParsed, SourceType, StatusEnum
-from template_processors.common import excel_file_processor
+from app.fastapi_celery.processors.helpers import excel_helper
 import config_loader
 
 METADATA_SEPARATOR = config_loader.get_env_variable("METADATA_SEPARATOR", "：")
@@ -19,7 +19,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class ExcelMasterdataProcessor(excel_file_processor.ExcelProcessor):
+class ExcelMasterProcessor(excel_helper.ExcelHelper):
     """Processor for handling Excel file operations.
 
     Initializes with a file path and source type, reads rows from the file,

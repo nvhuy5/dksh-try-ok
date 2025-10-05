@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 # Local Application Imports
 from utils import log_helpers
-from models.traceability_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 
 # ===
 # Set up logging

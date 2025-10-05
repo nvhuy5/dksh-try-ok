@@ -4,7 +4,7 @@ import logging
 import re
 
 from models.class_models import SourceType, PODataParsed
-from template_processors.common.txt_file_processor import BaseTXTProcessor
+from processors.helpers.txt_helper import TxtHelper
 from utils import log_helpers
 
 # ===
@@ -18,7 +18,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class Txt001Template(BaseTXTProcessor):
+class Txt001Template(TxtHelper):
     """
     Processor for file '0809-1.TXT' with double-space-separated columns.
     """
@@ -35,7 +35,7 @@ class Txt001Template(BaseTXTProcessor):
         return super().parse_file_to_json(self.parse_space_separated_lines)
 
 
-class Txt002Template(BaseTXTProcessor):
+class Txt002Template(TxtHelper):
     """
     Processor for file '20240726-131542-w25out20240726å…¨è¯.TXT' with tab-separated columns.
     """
@@ -57,7 +57,7 @@ class Txt002Template(BaseTXTProcessor):
         return super().parse_file_to_json(self.parse_tab_separated_lines)
 
 
-class Txt003Template(BaseTXTProcessor):
+class Txt003Template(TxtHelper):
     """
     Processor for file 'DELV082001.TXT' with single-space-separated values.
     """
@@ -77,7 +77,7 @@ class Txt003Template(BaseTXTProcessor):
         return super().parse_file_to_json(self.parse_space_separated_lines)
 
 
-class Txt004Template(BaseTXTProcessor):
+class Txt004Template(TxtHelper):
     """
     Processor for TXT file '20240711-143536-w25in20240711.TXT'.
     """

@@ -7,18 +7,18 @@ from models.class_models import (
     MasterDataParsed,
     PODataParsed,
 )
-from models.traceability_models import ServiceLog, LogType
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
 from utils import log_helpers, read_n_write_s3
 import logging
 import traceback
 from utils.middlewares.request_context import get_context_value
 from connections import aws_connection
 from botocore.exceptions import ClientError
-from template_processors.common import template_utils
+from processors.helpers import template_helper
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -279,7 +279,7 @@ def check_step_result_exists_in_s3(
             },
         )
 
-    return template_utils.parse_data(document_type=self.document_type, data=data)
+    return template_helper.parse_data(document_type=self.document_type, data=data)
 
 
 def list_all_attempt_objects(

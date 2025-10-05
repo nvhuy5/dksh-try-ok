@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from fastapi_celery.template_processors.processor_registry import ProcessorRegistry, TemplateProcessor
+from fastapi_celery.processors.processor_registry import ProcessorRegistry, ProcessorTemplate
 
 @pytest.mark.asyncio
 @patch("fastapi_celery.template_processors.processor_registry.get_context_value", return_value="test-request-id")
 @patch("fastapi_celery.template_processors.processor_registry.BEConnector")
-@patch.object(TemplateProcessor.PDF_001_TEMPLATE, "create_instance")
+@patch.object(ProcessorTemplate.PDF_001_TEMPLATE, "create_instance")
 async def test_valid_processor_mapping(mock_create_instance, mock_connector, mock_context):
     file_processor = MagicMock()
     file_processor.workflowStepId = "step123"
@@ -69,7 +69,7 @@ async def test_unknown_template_code(mock_connector, mock_context):
 @pytest.mark.asyncio
 @patch("fastapi_celery.template_processors.processor_registry.get_context_value", return_value="test-request-id")
 @patch("fastapi_celery.template_processors.processor_registry.BEConnector")
-@patch.object(TemplateProcessor.XML_001_TEMPLATE, "create_instance")
+@patch.object(ProcessorTemplate.XML_001_TEMPLATE, "create_instance")
 async def test_response_as_list_format(mock_create_instance, mock_connector, mock_context):
     file_processor = MagicMock()
     file_processor.workflowStepId = "step456"

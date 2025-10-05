@@ -15,7 +15,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class MasterDataProcessor:
+class BaseMasterProcessor:
     """Processor for handling master data files.
 
     Initializes with a file path and source type, parses the file into JSON format,

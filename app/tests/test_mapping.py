@@ -8,7 +8,7 @@ from fastapi_celery.models.class_models import (
     StatusEnum,
     StepOutput,
 )
-from fastapi_celery.template_processors.workflow_nodes.mapping import (
+from app.fastapi_celery.processors.workflow_processors.template_mapping import (
     template_data_mapping,
 )
 

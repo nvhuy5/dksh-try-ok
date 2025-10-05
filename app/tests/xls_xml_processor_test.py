@@ -5,15 +5,15 @@ from io import BytesIO
 import pandas as pd
 import unittest
 from xml.etree.ElementTree import Element
-from fastapi_celery.template_processors.file_processors.xml_processor import (
+from fastapi_celery.processors.file_processors.xml_processor import (
     XMLProcessor,
 )
 from fastapi_celery.models.class_models import SourceType, PODataParsed, StatusEnum
-from fastapi_celery.template_processors.master_data_processors.excel_master_data_processor import (
-    ExcelMasterdataProcessor,
+from app.fastapi_celery.processors.master_processors.excel_master_processor import (
+    ExcelMasterProcessor,
 )
-from fastapi_celery.template_processors.common.excel_file_processor import (
-    ExcelProcessor,
+from app.fastapi_celery.processors.helpers.excel_helper import (
+    ExcelHelper,
     METADATA_SEPARATOR,
 )
 
@@ -38,8 +38,8 @@ def expected_metadata():
 
 @pytest.fixture
 def processor_local():
-    with patch.object(ExcelProcessor, "read_rows", return_value=[]):
-        yield ExcelProcessor(file_path=Path("dummy.xlsx"), source=SourceType.LOCAL)
+    with patch.object(ExcelHelper, "read_rows", return_value=[]):
+        yield ExcelHelper(file_path=Path("dummy.xlsx"), source=SourceType.LOCAL)
 
 
 # Test extract_metadata for standard key:value
@@ -90,7 +90,7 @@ def test_read_rows_local(mock_read_excel, mock_ext_processor, sample_dataframe):
     mock_ext_processor.return_value = mock_instance
     mock_read_excel.return_value = {"Sheet1": sample_dataframe}
 
-    processor = ExcelProcessor(file_path=Path("dummy.xlsx"), source=SourceType.LOCAL)
+    processor = ExcelHelper(file_path=Path("dummy.xlsx"), source=SourceType.LOCAL)
     rows = processor.read_rows()
 
     assert len(rows) == 4
@@ -119,10 +119,10 @@ def expected_output():
     }
 
 
-@patch.object(ExcelMasterdataProcessor, "read_rows")
+@patch.object(ExcelMasterProcessor, "read_rows")
 def test_parse_file_to_json_success(mock_read_rows, mocked_rows, expected_output):
     mock_read_rows.return_value = mocked_rows
-    processor = ExcelMasterdataProcessor(Path("dummy.xlsx"), source=SourceType.LOCAL)
+    processor = ExcelMasterProcessor(Path("dummy.xlsx"), source=SourceType.LOCAL)
 
     # ✅ Provide required attributes
     processor.document_type = "master_data"
@@ -135,9 +135,9 @@ def test_parse_file_to_json_success(mock_read_rows, mocked_rows, expected_output
     assert result.items == expected_output["items"]
 
 
-@patch.object(ExcelMasterdataProcessor, "read_rows", return_value=[["Header1：Value1"]])
+@patch.object(ExcelMasterProcessor, "read_rows", return_value=[["Header1：Value1"]])
 def test_parse_file_to_json_error_handling(mock_read_rows):
-    processor = ExcelMasterdataProcessor(Path("dummy.xlsx"), source=SourceType.LOCAL)
+    processor = ExcelMasterProcessor(Path("dummy.xlsx"), source=SourceType.LOCAL)
 
     processor.document_type = "master_data"
     processor.capacity = "small"

@@ -11,12 +11,12 @@ from models.class_models import (
     StatusEnum,
     StepOutput,
 )
-from models.traceability_models import ServiceLog, LogType
+from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
 from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -25,7 +25,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class MasterDataValidation:
+class MasterValidation:
     def __init__(self, masterdata_json: MasterDataParsed):
         self.masterdata_json = masterdata_json
         self.masterdata_headers = self.masterdata_json.headers
@@ -234,7 +234,7 @@ async def masterdata_header_validation(self, input_data: StepOutput) -> StepOutp
         ApiUrl.MASTERDATA_HEADER_VALIDATION.full_url(),
         params={"fileName": self.file_record["file_name"]},
     ).get()
-    master_data = MasterDataValidation(masterdata_json=input_data.output)
+    master_data = MasterValidation(masterdata_json=input_data.output)
     header_validation_result = master_data.header_validation(
         header_reference=valid_headers
     )
@@ -269,7 +269,7 @@ async def masterdata_data_validation(self, input_data: StepOutput) -> StepOutput
         ApiUrl.MASTERDATA_COLUMN_VALIDATION.full_url(),
         params={"fileName": self.file_record["file_name"]},
     ).get()
-    master_data = MasterDataValidation(masterdata_json=input_data.output)
+    master_data = MasterValidation(masterdata_json=input_data.output)
     data_validation_result = master_data.data_validation(data_reference=valid_data)
 
     return StepOutput(

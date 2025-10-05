@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from fastapi_celery.template_processors.workflow_nodes.write_raw_to_s3 import write_raw_to_s3, get_destination_bucket, get_source_bucket
+from fastapi_celery.processors.workflow_processors.write_raw_to_s3 import write_raw_to_s3, get_destination_bucket, get_source_bucket
 from fastapi_celery.models.class_models import StepOutput, StatusEnum, DocumentType
 
 

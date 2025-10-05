@@ -2,8 +2,10 @@ from typing import Optional
 from pydantic import BaseModel
 from enum import Enum
 
+from models.class_models import FilePathRequest
 
-class TraceabilityContextModel(BaseModel):
+
+class TrackingModel(BaseModel):
     """
     Model representing traceability context data shared across the project.
 
@@ -15,12 +17,23 @@ class TraceabilityContextModel(BaseModel):
     request_id: str
     file_path: Optional[str] = None
     project_name: Optional[str] = None
-    source: Optional[str] = None
+    source_name: Optional[str] = None
     workflow_id: Optional[str] = None
     workflow_name: Optional[str] = None
     document_number: Optional[str] = None
     document_type: Optional[str] = None
     sap_masterdata: Optional[bool] = None
+    rerun_attempt: Optional[int] = None
+
+    @classmethod
+    def from_data_request(cls, data: FilePathRequest) -> "TrackingModel":
+        return cls(
+            request_id=data.celery_id,
+            file_path=data.file_path,
+            project_name=data.project,
+            source_name=data.source,
+            rerun_attempt=data.rerun_attempt,
+        )
 
 
 class ServiceLog(str, Enum):

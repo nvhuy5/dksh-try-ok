@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 from utils import log_helpers
 from models.class_models import SourceType, PODataParsed, StatusEnum
-from template_processors.common import excel_file_processor
+from processors.helpers import excel_helper
 
 PO_MAPPING_KEY = ""
 
@@ -18,7 +18,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class ExcelProcessor(excel_file_processor.ExcelProcessor):
+class ExcelProcessor(excel_helper.ExcelHelper):
     """Processor for handling Excel file operations.
 
     Initializes with a file path and source type, reads rows from the file,

@@ -8,7 +8,7 @@ from fastapi_celery.models.class_models import (
     StatusEnum,
     StepOutput,
 )
-from fastapi_celery.template_processors.workflow_nodes.template_validation import (
+from fastapi_celery.processors.workflow_processors.template_validation import (
     TemplateValidation,
     template_format_validation,
 )

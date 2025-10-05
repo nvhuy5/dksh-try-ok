@@ -9,7 +9,7 @@ import logging
 from utils import ext_extraction
 from utils import log_helpers
 from models.class_models import SourceType, PODataParsed, StatusEnum
-from template_processors.common.pdf_helpers import build_success_response, build_failed_response
+from processors.helpers.pdf_helper import build_success_response, build_failed_response
 
 # ===
 # Set up logging

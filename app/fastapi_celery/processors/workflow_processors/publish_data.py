@@ -4,7 +4,7 @@ from models.class_models import GenericStepResult, StatusEnum, StepOutput
 
 # ===
 # Set up logging
-logger_name = f"Workflow Node - {__name__}"
+logger_name = f"Workflow Processor - {__name__}"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 

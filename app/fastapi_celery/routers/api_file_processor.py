@@ -8,7 +8,7 @@ from models.class_models import (
     ApiUrl,
     StatusEnum,
 )
-from models.traceability_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from celery_worker import celery_task
 from utils import log_helpers
 from uuid import uuid4
@@ -55,38 +55,61 @@ async def process_file(data: FilePathRequest, http_request: Request) -> Dict[str
         HTTPException: If task submission fails due to an internal error.
     """
     try:
-        # Case: rerun
-        if data.celery_id and data.celery_id.strip():
-            celery_id = data.celery_id
-        else:
-            # Case: first run
-            celery_id = getattr(http_request.state, "request_id", str(uuid4()))
+        # # Case: rerun
+        # if data.celery_id and data.celery_id.strip():
+        #     celery_id = data.celery_id
+        # else:
+        #     # Case: first run
+        #     celery_id = getattr(http_request.state, "request_id", str(uuid4()))
 
-        # Include rerun_attempt in Celery task call
+        # # Include rerun_attempt in Celery task call
+        # celery_task.task_execute.apply_async(
+        #     kwargs={
+        #         "file_path": data.file_path,
+        #         "celery_id": celery_id,
+        #         "project_name": data.project,
+        #         "source": data.source,
+        #         "rerun_attempt": data.rerun_attempt,
+        #     },
+        #     task_id=celery_id,
+        # )
+
+        # If run for the first time, it will create request_id (celery_id)
+        # If run again, it will reuse request_id (celery_id)
+        if not (data.celery_id and data.celery_id.strip()):
+            data.celery_id = getattr(http_request.state, "request_id", str(uuid4()))
+
         celery_task.task_execute.apply_async(
-            kwargs={
-                "file_path": data.file_path,
-                "celery_id": celery_id,
-                "project_name": data.project,
-                "source": data.source,
-                "rerun_attempt": data.rerun_attempt,
-            },
-            task_id=celery_id,
+            kwargs=data,
+            task_id=data.celery_id,
         )
 
         logger.info(
-            f"Submitted Celery task: {celery_id}, file_path: {data.file_path}",
+            f"Submitted Celery task: {data.celery_id}",
             extra={
                 "service": ServiceLog.API_GATEWAY,
                 "log_type": LogType.ACCESS,
-                "file_path": data.file_path,
-                "traceability": celery_id,
+                "data": data,
             },
         )
         return {
-            "celery_id": celery_id,
+            "celery_id": data.celery_id,
             "file_path": data.file_path,
         }
+
+        # logger.info(
+        #     f"Submitted Celery task: {celery_id}, file_path: {data.file_path}",
+        #     extra={
+        #         "service": ServiceLog.API_GATEWAY,
+        #         "log_type": LogType.ACCESS,
+        #         "file_path": data.file_path,
+        #         "traceability": celery_id,
+        #     },
+        # )
+        # return {
+        #     "celery_id": celery_id,
+        #     "file_path": data.file_path,
+        # }
 
     except Exception as e:
         traceback.print_exc()
@@ -98,8 +121,7 @@ async def process_file(data: FilePathRequest, http_request: Request) -> Dict[str
             extra={
                 "service": ServiceLog.API_GATEWAY,
                 "log_type": LogType.ERROR,
-                "file_path": data.file_path,
-                "traceability": celery_id,
+                "data": data,
             },
         )
         raise HTTPException(
