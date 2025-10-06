@@ -175,7 +175,7 @@ async def stop(data: StopTaskRequest) -> Dict[str, Any]:
 
     redis_workflow = redis_utils.get_workflow_id(task_id)
     step_ids = redis_utils.get_step_ids(task_id)
-    step_statuses = redis_utils.get_step_statuses(task_id)
+    step_statuses = redis_utils.get_all_step_status(task_id)
 
     if not redis_workflow:
         logger.warning(

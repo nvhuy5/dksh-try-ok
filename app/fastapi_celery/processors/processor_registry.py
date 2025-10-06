@@ -57,7 +57,6 @@ class ProcessorRegistry:
         Returns:
             TemplateProcessor instance.
         """
-        request_id = get_context_value("request_id") or "unknown"
 
         try:
             if file_processor.document_type == DocumentType.ORDER:
@@ -66,7 +65,7 @@ class ProcessorRegistry:
                 step_id = file_processor.workflow_step_ids.get("MASTER_DATA_FILE_PARSER")
             
             if not step_id:
-                logger.error(f"[{request_id}] Missing current_step_id in context")
+                logger.error(f"[{file_processor.tracking_model.request_id}] Missing current_step_id in context")
                 raise RuntimeError("Missing workflowStepId in context")
 
             # === Call BE ===
@@ -102,33 +101,34 @@ class ProcessorRegistry:
             processor_enum = cls._map_code_to_processor(template_code)
             if not processor_enum:
                 logger.error(
-                    f"[{request_id}] Unknown template code from BE: {template_code}",
+                    f"[{file_processor.tracking_model.request_id}] Unknown template code from BE: {template_code}",
                     extra={
                         "service": "ProcessorRegistry",
                         "log_type": "ERROR",
-                        "traceability": request_id,
+                        "data": file_processor.tracking_model,
                     },
                 )
                 raise RuntimeError(f"Unknown template code: {template_code}")
 
             logger.info(
-                f"[{request_id}] Resolved processor: {processor_enum.name}",
+                f"[{file_processor.tracking_model.request_id}] Resolved processor: {processor_enum.name}",
                 extra={
                     "service": "ProcessorRegistry",
                     "log_type": "INFO",
-                    "traceability": request_id,
+                    "data": file_processor.tracking_model,
                 },
             )
 
-            return processor_enum.create_instance(file_path=file_processor.file_path)
+            # return processor_enum.create_instance(file_path=file_processor.file_path)
+            return processor_enum.create_instance(file_path=file_processor.tracking_model)
 
         except Exception as e:
             logger.error(
-                f"[{request_id}] Error in get_processor_for_file: {str(e)}",
+                f"[{file_processor.tracking_model.request_id}] Error in get_processor_for_file: {str(e)}",
                 extra={
                     "service": "ProcessorRegistry",
                     "log_type": "ERROR",
-                    "traceability": request_id,
+                    "data": file_processor.tracking_model,
                 },
             )
             raise

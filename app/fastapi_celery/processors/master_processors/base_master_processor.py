@@ -1,12 +1,13 @@
 import logging
 import traceback
 from pathlib import Path
+from models.tracking_models import TrackingModel
 from models.class_models import SourceType, MasterDataParsed, StatusEnum
 from utils import log_helpers, ext_extraction
 
 # ===
 # Set up logging
-logger_name = "Excel Processor"
+logger_name = "BaseMaster Processor"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -22,14 +23,14 @@ class BaseMasterProcessor:
     and uploads the result to S3.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """Initialize the master data processor with a file path and source type.
 
         Args:
             file_path (Path): The path to the master data file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.file_path = file_path
+        self.tracking_model = TrackingModel
         self.file_object = None
         self.source = source
 
@@ -46,9 +47,7 @@ class BaseMasterProcessor:
                 and capacity (str).
         """
         try:
-            self.file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path, source=self.source
-            )
+            self.file_object = ext_extraction.FileExtensionProcessor(tracking_model=self.tracking_model, source=self.source)
             file_object = self.file_object
             document_type = file_object._get_document_type()
             capacity = file_object._get_file_capacity()
@@ -73,7 +72,7 @@ class BaseMasterProcessor:
             )
             print(f"Error while parsing file to JSON: {e}")
             return MasterDataParsed(
-                original_file_path=self.file_path,
+                original_file_path=self.tracking_model.file_path,
                 headers=[],
                 document_type=getattr(self, "document_type", None),
                 items=[],

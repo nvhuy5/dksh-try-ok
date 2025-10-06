@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import logging
+from models.tracking_models import TrackingModel
 from utils import log_helpers
 from models.class_models import SourceType, PODataParsed, StatusEnum
 from processors.helpers import excel_helper
@@ -25,14 +26,14 @@ class ExcelProcessor(excel_helper.ExcelHelper):
     and provides methods to parse the content into JSON format.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """Initialize the Excel processor with a file path and source type.
 
         Args:
             file (Path): The path to the Excel file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        super().__init__(file_path=file_path, source=source)
+        super().__init__(tracking_model=tracking_model, source=source)
         self.po_number = None
 
     def parse_file_to_json(self) -> PODataParsed:  # NOSONAR

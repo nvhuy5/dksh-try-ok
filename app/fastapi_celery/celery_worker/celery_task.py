@@ -10,7 +10,11 @@ from celery import shared_task
 from celery.exceptions import Retry, MaxRetriesExceededError
 from pydantic import BaseModel
 
-from models.body_models import WorkflowFilterBody, WorkflowSessionStartBody, WorkflowStepStartBody
+from models.body_models import (
+    WorkflowFilterBody,
+    WorkflowSessionStartBody,
+    WorkflowStepStartBody,
+)
 
 from .step_handler import execute_step, raise_if_failed
 from connections.be_connection import BEConnector
@@ -53,16 +57,6 @@ types_list = json.loads(config_loader.get_config_value("support_types", "types")
 
 @shared_task(bind=True, retry_kwargs={"max_retries": 3})
 def task_execute(self, data: dict) -> str:
-
-# @shared_task(bind=True, retry_kwargs={"max_retries": 3})
-# def task_execute(
-#     self,
-#     file_path: str,
-#     celery_id: str,
-#     project_name: str,
-#     source: str,
-#     rerun_attempt: Optional[int] = None,
-# ) -> str:
     """
     Celery task entry point (synchronous wrapper).
 
@@ -76,13 +70,8 @@ def task_execute(self, data: dict) -> str:
         str: Status message indicating whether the task succeeded or failed.
     """
     try:
-        # file_request = FilePathRequest(file_path=file_path, project=project_name, source=source, celery_id=celery_id, rerun_attempt=rerun_attempt)
         file_request = FilePathRequest(**data)
         tracking_model = TrackingModel.from_data_request(file_request)
-        # Copy context and run asyncio task inside it
-        ctx = contextvars.copy_context()
-        # ctx.run(lambda: asyncio.run(handle_task(tracking_model)))
-        ctx.run(lambda: handle_task(tracking_model))
         logger.info(
             f"[{tracking_model.request_id}] Starting task execution",
             extra={
@@ -91,6 +80,10 @@ def task_execute(self, data: dict) -> str:
                 "data": tracking_model,
             },
         )
+        ctx = contextvars.copy_context()
+        ctx.run(lambda: handle_task(tracking_model))
+        # ctx.run(lambda: asyncio.run(handle_task(tracking_model)))
+        
         return "Task completed"
     except Retry:
         logger.warning(f"[{tracking_model.request_id}] Task is retrying...")
@@ -172,9 +165,6 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
         tracking_model=tracking_model,
     )
 
-    if not workflow_model:
-        return context_data
-
     logger.info(
         f"[{tracking_model.request_id}] Workflow detail:\n",
         extra={
@@ -183,6 +173,9 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
             "data": workflow_model,
         },
     )
+    
+    if not workflow_model:
+        return context_data
 
     # === Start session ===
     start_session_model = call_workflow_session_start(
@@ -190,9 +183,6 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
         file_processor=file_processor,
         tracking_model=tracking_model,
     )
-
-    if not start_session_model:
-        return context_data
 
     logger.info(
         f"[{tracking_model.request_id}] Workflow Session Start:\n",
@@ -203,80 +193,93 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
         },
     )
 
-    # Update Redis
+    if not start_session_model:
+        return context_data
+
+    # === Update Redis ===
     redis_connector.store_workflow_id(
         task_id=tracking_model.request_id,
         workflow_id=workflow_model.id,
         status=StatusEnum.PROCESSING.name,
     )
 
-    # === Process steps ===
-    # Sort steps in ascending order by stepOrder
-    data_input = None
-    # sorted_steps = sorted(workflow_model.workflowSteps, key=lambda step: step.stepOrder)
-    # for step in sorted_steps:
-    #     # Start step
-    #     start_step_model = await call_workflow_step_start(
-    #         context_data=context_data,
-    #         file_processor=file_processor,
-    #         tracking_model=tracking_model,
-    #         step=step,
-    #     )
+    try:
+        # === Process steps ===
+        # Sort steps in ascending order by stepOrder
+        data_input = None
+        sorted_steps = sorted(workflow_model.workflowSteps, key=lambda step: step.stepOrder)
+        for step in sorted_steps:
+            # === Start step ===
+            start_step_model = call_workflow_step_start(
+                context_data=context_data,
+                file_processor=file_processor,
+                tracking_model=tracking_model,
+                step=step,
+            )
 
-    #     # Update Redis
-    #     redis_connector.store_step_status(
-    #         task_id=tracking_model.request_id,
-    #         step_name=step.stepName,
-    #         status=StatusEnum.PROCESSING.name,
-    #         step_id=step.workflowStepId,
-    #     )
+            # === Update Redis ===
+            redis_connector.store_step_status(
+                task_id=tracking_model.request_id,
+                step_name=step.stepName,
+                status=StatusEnum.PROCESSING.name,
+                step_id=step.workflowStepId,
+            )
 
-    #     # Execute step
-    #     try:
+            # === Execute step ===
+            step_result = execute_step(file_processor, context_data, step, data_input)
+            # data_input = step_result
 
-    #         step_result = await execute_step(file_processor, context_data, step, data_input)
-    #         # data_input = step_result
+            # === Update Redis ===
+            redis_connector.store_step_status(
+                task_id=tracking_model.request_id,
+                step_name=step.stepName,
+                status=StatusEnum(step_result.step_status).name,
+                step_id=step.workflowStepId,
+            )
 
-    #         # Update Redis
-    #         redis_connector.store_workflow_id(
-    #             task_id=tracking_model.request_id,
-    #             workflow_id=workflow_model.id,
-    #             status=StatusEnum(step_result.step_status).name,
-    #         )
-    #         redis_connector.store_step_status(
-    #             task_id=tracking_model.request_id,
-    #             step_name=step.stepName,
-    #             status=StatusEnum(step_result.step_status).name,
-    #             step_id=step.workflowStepId,
-    #         )
+            # === Finish step ===
+            finish_step_model = call_workflow_step_finish(
+                context_data=context_data,
+                file_processor=file_processor,
+                tracking_model=tracking_model,
+                step=step,
+            )
 
-    #         finish_step_model = await call_workflow_step_finish(
-    #             context_data=context_data,
-    #             file_processor=file_processor,
-    #             tracking_model=tracking_model,
-    #             step=step,
-    #         )
+        # === Update Redis ===
+        redis_connector.store_workflow_id(
+            task_id=tracking_model.request_id,
+            workflow_id=workflow_model.id,
+            status=StatusEnum.SUCCESS.name,
+        )
 
-    #     except Exception as e:
-    #         short_tb = "".join(
-    #             traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-    #         )
-    #         redis_connector.store_workflow_id(
-    #             task_id=tracking_model.request_id,
-    #             workflow_id=workflow_model.id,
-    #             status=StatusEnum.FAILED,
-    #         )
-    #         logger.exception(
-    #             f"[{tracking_model.request_id}] Step {step.stepName} failed: {e}!\n{short_tb}",
-    #             extra={
-    #                 "service": ServiceLog.DATA_TRANSFORM,
-    #                 "log_type": LogType.ERROR,
-    #                 "data": tracking_model,
-    #             },
-    #         )
-    #         raise RuntimeError(f"Step {step.stepName} failed") from e
+        # === Finish session ===
 
-    return context_data
+        return context_data
+
+    except Exception as e:
+        short_tb = "".join(
+            traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+        )
+        # === Update Redis ===
+        redis_connector.store_workflow_id(
+            task_id=tracking_model.request_id,
+            workflow_id=workflow_model.id,
+            status=StatusEnum.FAILED.name,
+        )
+        logger.exception(
+            f"[{tracking_model.request_id}] Step {step.stepName} failed: {e}!\n{short_tb}",
+            extra={
+                "service": ServiceLog.DATA_TRANSFORM,
+                "log_type": LogType.ERROR,
+                "data": tracking_model,
+            },
+        )
+
+        # call_workflow_step_start
+
+        # call_workflow_session_finish
+
+        raise RuntimeError(f"Step {step.stepName} failed") from e
 
 
 def get_workflow_filter(
@@ -308,8 +311,8 @@ def get_workflow_filter(
     context_data.workflow_detail.filter_api.request = body_data
     context_data.workflow_detail.filter_api.response = workflow_model
 
-    tracking_model.workflow_id = (workflow_model.id,)
-    tracking_model.workflow_name = (workflow_model.name,)
+    tracking_model.workflow_id = workflow_model.id
+    tracking_model.workflow_name = workflow_model.name
     tracking_model.sap_masterdata = bool(workflow_model.sapMasterData)
 
     return workflow_model
@@ -340,30 +343,36 @@ def call_workflow_session_start(
             f"[{tracking_model.request_id}] Failed to initialize WorkflowSession from response"
         )
 
-    context_data.workflow_detail.metadata_api.session_start_api.url = ApiUrl.WORKFLOW_SESSION_START.full_url()
+    context_data.workflow_detail.metadata_api.session_start_api.url = (
+        ApiUrl.WORKFLOW_SESSION_START.full_url()
+    )
     context_data.workflow_detail.metadata_api.session_start_api.request = body_data
-    context_data.workflow_detail.metadata_api.session_start_api.response = start_session_model
+    context_data.workflow_detail.metadata_api.session_start_api.response = (
+        start_session_model
+    )
 
     return start_session_model
 
 
-async def call_workflow_session_finish(context_data: ContextData):
+def call_workflow_session_finish(context_data: ContextData):
     pass
 
 
-async def call_workflow_step_start(
+def call_workflow_step_start(
     context_data: ContextData,
     file_processor: ProcessorBase,
     tracking_model: TrackingModel,
     step: WorkflowStep,
 ):
-    # Start step
+
     logger.info(f"[{tracking_model.request_id}] Starting step: {step.stepName}")
     body_data = WorkflowStepStartBody(
         sessionId=context_data.workflow_detail.metadata_api.session_start_api.response.id,
         stepId=step.workflowStepId,
     )
-    start_step_response = await BEConnector(ApiUrl.WORKFLOW_STEP_START.full_url(), body_data).post()
+    start_step_response = BEConnector(
+        ApiUrl.WORKFLOW_STEP_START.full_url(), body_data
+    ).post()
     if not start_step_response:
         raise RuntimeError(
             f"[{tracking_model.request_id}] Failed to fetch workflow_step_start"
@@ -385,19 +394,25 @@ async def call_workflow_step_start(
         step_item.metadata_api = {}
         context_data.step_detail.append(step_item)
 
-    context_data.step_detail[step.stepOrder - 1].metadata_api.Step_start_api.url = ApiUrl.WORKFLOW_STEP_START.full_url()
-    context_data.step_detail[step.stepOrder - 1].metadata_api.Step_start_api.request = body_data
-    context_data.step_detail[step.stepOrder - 1].metadata_api.Step_start_api.response = start_step_model
+    context_data.step_detail[step.stepOrder - 1].metadata_api.Step_start_api.url = (
+        ApiUrl.WORKFLOW_STEP_START.full_url()
+    )
+    context_data.step_detail[step.stepOrder - 1].metadata_api.Step_start_api.request = (
+        body_data
+    )
+    context_data.step_detail[
+        step.stepOrder - 1
+    ].metadata_api.Step_start_api.response = start_step_model
     return start_step_model
 
 
-async def call_workflow_step_finish(
+def call_workflow_step_finish(
     context_data: ContextData,
     file_processor: ProcessorBase,
     tracking_model: TrackingModel,
     step: WorkflowStep,
 ):
-    # Finish step
+
     logger.info(f"[{tracking_model.request_id}] Finish step: {step.stepName}")
     body_data = {
         "workflowHistoryId": context_data.step_detail[
@@ -408,6 +423,6 @@ async def call_workflow_step_finish(
         "dataInput": "input_data",
         "dataOutput": "",
     }
-    finish_step_response = await BEConnector(
+    finish_step_response = BEConnector(
         ApiUrl.WORKFLOW_STEP_FINISH.full_url(), body_data=body_data
     ).post()

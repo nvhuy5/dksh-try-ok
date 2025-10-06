@@ -32,12 +32,12 @@ class TemplateValidation:
         self.po_json = po_json
         self.items = po_json.items if isinstance(po_json.items, list) else [po_json.items]
 
-        self.request_id = get_context_value("request_id")
-        self.traceability_context_values = {
-            key: val
-            for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
-            if (val := get_context_value(key)) is not None
-        }
+        # self.request_id = get_context_value("request_id")
+        # self.traceability_context_values = {
+        #     key: val
+        #     for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
+        #     if (val := get_context_value(key)) is not None
+        # }
 
     def _check_required(self, val: Any, required: bool, allow_empty: bool, col_key: str, idx: int) -> str | None:
         if required and not allow_empty and (val is None or str(val).strip() == ""):
@@ -126,20 +126,18 @@ class TemplateValidation:
         return {
             "service": ServiceLog.METADATA_VALIDATION,
             "log_type": log_type,
-            **self.traceability_context_values,
-            "document_type": DocumentType.ORDER,
-            "traceability": self.request_id,
+            "data": self.tracking_model,
         }
 
 
 # === orchestration ===
 async def template_format_validation(self, input_data: StepOutput) -> StepOutput:
-    request_id = get_context_value("request_id")
-    traceability_context_values = {
-        key: val
-        for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
-        if (val := get_context_value(key)) is not None
-    }
+    # request_id = get_context_value("request_id")
+    # traceability_context_values = {
+    #     key: val
+    #     for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
+    #     if (val := get_context_value(key)) is not None
+    # }
 
     # Step 1: call template-parse API
     template_parse_resp = await BEConnector(
@@ -153,9 +151,7 @@ async def template_format_validation(self, input_data: StepOutput) -> StepOutput
             extra={
                 "service": ServiceLog.VALIDATION,
                 "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "document_type": DocumentType.ORDER,
-                "traceability": request_id,
+                "data": self.tracking_model,
             },
         )
         failed_output = input_data.output.model_copy(
@@ -186,9 +182,7 @@ async def template_format_validation(self, input_data: StepOutput) -> StepOutput
             extra={
                 "service": ServiceLog.VALIDATION,
                 "log_type": LogType.ERROR,
-                **traceability_context_values,
-                "document_type": DocumentType.ORDER,
-                "traceability": request_id,
+                "data": self.tracking_model,
             },
         )
         failed_output = input_data.output.model_copy(

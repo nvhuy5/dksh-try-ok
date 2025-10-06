@@ -72,7 +72,7 @@ class TestRedisUtils(unittest.TestCase):
         mock_redis = mock_redis_constructor.return_value
         redis_utils = RedisConnector()
         mock_redis.hgetall.return_value = {"stepA": "completed"}
-        result = redis_utils.get_step_statuses(self.task_id)
+        result = redis_utils.get_all_step_status(self.task_id)
         self.assertEqual(result, {"stepA": "completed"})
 
     @patch("fastapi_celery.connections.redis_connection.redis.Redis")
@@ -80,7 +80,7 @@ class TestRedisUtils(unittest.TestCase):
         mock_redis = mock_redis_constructor.return_value
         redis_utils = RedisConnector()
         mock_redis.hgetall.side_effect = RedisError("Connection error")
-        result = redis_utils.get_step_statuses(self.task_id)
+        result = redis_utils.get_all_step_status(self.task_id)
         self.assertEqual(result, {})
 
     # --- get_step_ids ---

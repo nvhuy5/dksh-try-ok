@@ -45,24 +45,24 @@ class BEConnector:
 
         """
         # === Try to retrieve all traceability attributes when an object created
-        self.redis_utils = RedisConnector()
-        self.request_id = get_context_value("request_id")
-        self.traceability_context_values = {
-            key: val
-            for key in [
-                "file_path",
-                "workflow_name",
-                "workflow_id",
-                "document_number",
-                "document_type",
-            ]
-            if (val := get_context_value(key)) is not None
-        }
-        logger.debug(
-            f"Function: {__name__}\n"
-            f"RequestID: {self.request_id}\n"
-            f"TraceabilityContext: {self.traceability_context_values}"
-        )
+        # self.redis_utils = RedisConnector()
+        # self.request_id = get_context_value("request_id")
+        # self.traceability_context_values = {
+        #     key: val
+        #     for key in [
+        #         "file_path",
+        #         "workflow_name",
+        #         "workflow_id",
+        #         "document_number",
+        #         "document_type",
+        #     ]
+        #     if (val := get_context_value(key)) is not None
+        # }
+        # logger.debug(
+        #     f"Function: {__name__}\n"
+        #     f"RequestID: {self.request_id}\n"
+        #     f"TraceabilityContext: {self.traceability_context_values}"
+        # )
 
         self.api_url = api_url
         self.body_data = body_data or {}
@@ -171,12 +171,12 @@ class BEConnector:
             )
             logger.error(
                 f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
-                extra={
-                    "service": ServiceLog.DATABASE,
-                    "log_type": LogType.ERROR,
-                    **self.traceability_context_values,
-                    "traceability": self.request_id,
-                },
+                # extra={
+                #     "service": ServiceLog.DATABASE,
+                #     "log_type": LogType.ERROR,
+                #     **self.traceability_context_values,
+                #     "traceability": self.request_id,
+                # },
             )
         except Exception as e:
             short_tb = "".join(
@@ -184,12 +184,12 @@ class BEConnector:
             )
             logger.exception(
                 f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
-                extra={
-                    "service": ServiceLog.DATABASE,
-                    "log_type": LogType.ERROR,
-                    **self.traceability_context_values,
-                    "traceability": self.request_id,
-                },
+                # extra={
+                #     "service": ServiceLog.DATABASE,
+                #     "log_type": LogType.ERROR,
+                #     **self.traceability_context_values,
+                #     "traceability": self.request_id,
+                # },
             )
         return None
 

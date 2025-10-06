@@ -16,7 +16,7 @@ def parse_data(
     if data is None:
         raise ValueError("Input data is None — cannot continue task execution.")
     if isinstance(data, BaseModel):
-        data = data.dict()
+        data = data.model_dump()
 
     if custom_type:
         return custom_type(**data)

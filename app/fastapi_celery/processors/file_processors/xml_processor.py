@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import logging
 import re
 
+from models.tracking_models import TrackingModel
 from models.class_models import SourceType, PODataParsed, StatusEnum
 from utils import log_helpers, ext_extraction
 
@@ -25,14 +26,14 @@ class XMLProcessor:
     text and parse it into JSON format.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """Initialize the XML processor with a file path and source type.
 
         Args:
             file_path (Path): The path to the XML file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.file_path = file_path
+        self.tracking_model = tracking_model
         self.source = source
         self.capacity = None
         self.document_type = None
@@ -46,7 +47,7 @@ class XMLProcessor:
             str: The extracted text content of the file.
         """
         file_object = ext_extraction.FileExtensionProcessor(
-            file_path=self.file_path, source=self.source
+            tracking_model=self.tracking_model, source=self.source
         )
         self.capacity = file_object._get_file_capacity()
         self.document_type = file_object._get_document_type()
@@ -129,7 +130,7 @@ class XMLProcessor:
         """
         json_data = {}
 
-        logger.info(f"Start processing for file: {self.file_path}")
+        logger.info(f"Start processing for file: {self.tracking_model.file_path}")
 
         xml_content = self.extract_text()
         root = ET.fromstring(xml_content)
@@ -139,7 +140,7 @@ class XMLProcessor:
         logger.info("File has been processed successfully!")
 
         return PODataParsed(
-            original_file_path=self.file_path,
+            original_file_path=self.tracking_model.file_path,
             document_type=self.document_type,
             po_number=po_number,
             items=json_data,

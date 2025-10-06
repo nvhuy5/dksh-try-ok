@@ -4,6 +4,7 @@ from typing import Type
 from dataclasses import dataclass
 
 # Local Application Imports
+from models.tracking_models import TrackingModel
 from processors import file_processors, master_processors
 
 
@@ -40,7 +41,7 @@ class ProcessorTemplate(Enum):
     Template Registry
     """
 
-    def create_instance(self, file_path: str) -> object:
+    def create_instance(self, tracking_model: TrackingModel) -> object:
         """Creates an instance of the processor class for the given file path.
 
         Args:
@@ -49,7 +50,7 @@ class ProcessorTemplate(Enum):
         Returns:
             object: Instance of the processor class.
         """
-        return self.value.cls(file_path)
+        return self.value.cls(tracking_model)
 
     @property
     def description(self) -> str:

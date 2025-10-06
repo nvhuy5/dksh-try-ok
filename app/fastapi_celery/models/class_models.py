@@ -324,7 +324,7 @@ class StepDetailConfig(BaseModel):
 
 class StepDetail(BaseModel):
     step: Optional[Dict[str, Any]] = None
-    config_api: Optional[Dict[str, Any]] = None
+    config_api: Any | None = None
     metadata_api: Optional[StepDetailConfig] = None
 
 

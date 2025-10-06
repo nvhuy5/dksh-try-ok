@@ -6,6 +6,7 @@ import pdfplumber
 from typing import List, Dict, Any, Tuple, Optional
 
 import logging
+from models.tracking_models import TrackingModel
 from utils import ext_extraction
 from utils import log_helpers
 from models.class_models import SourceType, PODataParsed, StatusEnum
@@ -30,8 +31,8 @@ class Pdf001Template:
     PDF Processor to extract file name 0C-RLBH75-K0.pdf
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -107,7 +108,7 @@ class Pdf001Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path,
+                tracking_model=self.tracking_model,
                 source=self.source
             )
             capacity = file_object._get_file_capacity()
@@ -122,7 +123,7 @@ class Pdf001Template:
                     filetype="pdf"
                 )
 
-            logger.info(f"Start processing for file: {self.file_path}")
+            logger.info(f"Start processing for file: {self.tracking_model.file_path}")
 
             # Extract text from all pages
             full_text_lines = []
@@ -140,12 +141,12 @@ class Pdf001Template:
             self.po_number = metadata.get("訂購編號")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,
@@ -157,8 +158,8 @@ class Pdf002Template:
     PDF Processor to extract file name 0819啄木鳥A.pdf, 20240628120641957.pdf, 20240814141011543.pdf
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -263,7 +264,7 @@ class Pdf002Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path, source=self.source
+                tracking_model=self.tracking_model, source=self.source
             )
             capacity = file_object._get_file_capacity()
             document_type = file_object._get_document_type()
@@ -292,12 +293,12 @@ class Pdf002Template:
             self.po_number = metadata.get("訂單編號") or metadata.get("採購單號")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,
@@ -309,8 +310,8 @@ class Pdf004Template:
     PDF Processor to extract file name 20240722102127096.pdf
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -427,7 +428,7 @@ class Pdf004Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path,
+                tracking_model=self.tracking_model,
                 source=self.source
             )
             capacity = file_object._get_file_capacity()
@@ -455,12 +456,12 @@ class Pdf004Template:
             self.po_number = metadata.get("採購單號")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,
@@ -472,8 +473,8 @@ class Pdf006Template:
     PDF Processor for file A202405220043.pdf
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -612,7 +613,7 @@ class Pdf006Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path,
+                tracking_model=self.tracking_model,
                 source=self.source
             )
             capacity = file_object._get_file_capacity()
@@ -639,12 +640,12 @@ class Pdf006Template:
             logger.info("File has been processed successfully.")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,
@@ -656,8 +657,8 @@ class Pdf007Template:
     PDF Processor to extract file name O20240620TPB026.PDF
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -798,7 +799,7 @@ class Pdf007Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path, source=self.source
+                tracking_model=self.tracking_model, source=self.source
             )
             capacity = file_object._get_file_capacity()
             document_type = file_object._get_document_type()
@@ -824,12 +825,12 @@ class Pdf007Template:
             self.po_number = items[0].get("請購明細單號")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,
@@ -841,8 +842,8 @@ class Pdf008Template:
     PDF Processor to extract file name RSV_1921_M24081500290_DC3.pdf
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        self.file_path = file_path
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
 
@@ -903,7 +904,7 @@ class Pdf008Template:
         """
         try:
             file_object = ext_extraction.FileExtensionProcessor(
-                file_path=self.file_path, source=self.source
+                tracking_model=self.tracking_model, source=self.source
             )
             capacity = file_object._get_file_capacity()
             document_type = file_object._get_document_type()
@@ -932,12 +933,12 @@ class Pdf008Template:
             self.po_number = items[0].get("退貨單號")
 
             return build_success_response(
-                self.file_path, document_type, self.po_number, items, metadata, capacity
+                self.tracking_model.file_path, document_type, self.po_number, items, metadata, capacity
             )
 
         except Exception as e:
             return build_failed_response(
-                self.file_path,
+                self.tracking_model.file_path,
                 getattr(self, "document_type", None),
                 getattr(self, "capacity", None),
                 e,

@@ -19,30 +19,9 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 
 
 def write_raw_to_s3(self, source_file_path: str) -> StepOutput:
-    # === Try to retrieve all traceability attributes when an object created
-    self.request_id = get_context_value("request_id")
-    self.project_name = get_context_value("project_name")
-    self.sap_masterdata = get_context_value("sap_masterdata")
-    self.traceability_context_values = {
-        key: val
-        for key in [
-            "file_path",
-            "workflow_name",
-            "workflow_id",
-            "document_number",
-            "document_type",
-        ]
-        if (val := get_context_value(key)) is not None
-    }
-    logger.debug(
-        f"Function: {__name__}\n"
-        f"RequestID: {self.request_id}\n"
-        f"TraceabilityContext: {self.traceability_context_values}"
-    )
-
     # Check document type is Master data type
-    source_s3_raw_master_data = get_source_bucket(self.document_type, self.project_name)
-    destination_s3_raw_master_name = get_destination_bucket(self.project_name, self.sap_masterdata)
+    source_s3_raw_master_data = get_source_bucket(self.document_type, self.tracking_model.project_name)
+    destination_s3_raw_master_name = get_destination_bucket(self.tracking_model.project_name, self.tracking_model.sap_masterdata)
     file_name = Path(source_file_path).name
     stem = Path(source_file_path).stem
     destination_key = f"master_data/{stem}/{file_name}"
@@ -53,8 +32,7 @@ def write_raw_to_s3(self, source_file_path: str) -> StepOutput:
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.TASK,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
         result = read_n_write_s3.copy_object_between_buckets(
@@ -83,19 +61,18 @@ def write_raw_to_s3(self, source_file_path: str) -> StepOutput:
         version_key = f"{version_prefix}{version_folder}/{file_name}"
  
         read_n_write_s3.copy_object_between_buckets(
-        source_bucket=source_s3_raw_master_data,
-        source_key=source_file_path,
-        dest_bucket=destination_s3_raw_master_name,
-        dest_key=version_key,
-    )
+            source_bucket=source_s3_raw_master_data,
+            source_key=source_file_path,
+            dest_bucket=destination_s3_raw_master_name,
+            dest_key=version_key,
+        )
  
         logger.info(
             "write_raw_to_s3 completed.",
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.TASK,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
  
@@ -111,8 +88,7 @@ def write_raw_to_s3(self, source_file_path: str) -> StepOutput:
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.ERROR,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
             exc_info=True,
             )

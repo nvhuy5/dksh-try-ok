@@ -47,24 +47,6 @@ def write_json_to_s3(
     Returns:
         Optional[str]: S3 key of the written file if successful, None otherwise.
     """
-    # === Try to retrieve all traceability attributes when an object created
-    self.request_id = get_context_value("request_id")
-    self.traceability_context_values = {
-        key: val
-        for key in [
-            "file_path",
-            "workflow_name",
-            "workflow_id",
-            "document_number",
-            "document_type",
-        ]
-        if (val := get_context_value(key)) is not None
-    }
-    logger.debug(
-        f"Function: {__name__}\n"
-        f"RequestID: {self.request_id}\n"
-        f"TraceabilityContext: {self.traceability_context_values}"
-    )
 
     # Define the target bucket based on the document type of PO and Master Data
     if self.document_type == DocumentType.MASTER_DATA:  # pragma: no cover
@@ -86,8 +68,7 @@ def write_json_to_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.ERROR,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
         return StepOutput(
@@ -104,8 +85,7 @@ def write_json_to_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.ERROR,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
         return StepOutput(
@@ -120,8 +100,7 @@ def write_json_to_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.TASK,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
         result = read_n_write_s3.write_json_to_s3(
@@ -137,8 +116,7 @@ def write_json_to_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.TASK,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
         )
 
@@ -157,8 +135,7 @@ def write_json_to_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.ERROR,
-                **self.traceability_context_values,
-                "traceability": self.request_id,
+                "data": self.tracking_model,
             },
             exc_info=True,
         )
@@ -180,18 +157,6 @@ def check_step_result_exists_in_s3(
     Returns True (skip) if found and step_status == "1", else False (needs rerun).
     """
     self.current_output_path = None
-    self.request_id = get_context_value("request_id") or task_id
-    self.traceability_context_values = {
-        key: val
-        for key in [
-            "file_path",
-            "workflow_name",
-            "workflow_id",
-            "document_number",
-            "document_type",
-        ]
-        if (val := get_context_value(key)) is not None
-    }
 
     try:
         # Build base prefix
@@ -227,7 +192,7 @@ def check_step_result_exists_in_s3(
             f"[check_step_result_exists_in_s3] Checking S3 key: {s3_key}",
             extra={
                 "service": ServiceLog.FILE_STORAGE,
-                **self.traceability_context_values,
+                "data": self.tracking_model,
             },
         )
 
@@ -240,7 +205,7 @@ def check_step_result_exists_in_s3(
                 f"attempt {rerun_attempt}. Will rerun.",
                 extra={
                     "service": ServiceLog.FILE_STORAGE,
-                    **self.traceability_context_values,
+                    "data": self.tracking_model,
                 },
             )
             return None
@@ -253,7 +218,7 @@ def check_step_result_exists_in_s3(
                 f"attempt {rerun_attempt} has step_status=1. Skipping.",
                 extra={
                     "service": ServiceLog.FILE_STORAGE,
-                    **self.traceability_context_values,
+                    "data": self.tracking_model,
                 },
             )
         else:
@@ -262,7 +227,7 @@ def check_step_result_exists_in_s3(
                 f"attempt {rerun_attempt} has step_status={step_status}. Will rerun.",
                 extra={
                     "service": ServiceLog.FILE_STORAGE,
-                    **self.traceability_context_values,
+                    "data": self.tracking_model,
                 },
             )
 
@@ -275,7 +240,7 @@ def check_step_result_exists_in_s3(
             extra={
                 "service": ServiceLog.FILE_STORAGE,
                 "log_type": LogType.ERROR,
-                **self.traceability_context_values,
+                "data": self.tracking_model,
             },
         )
 

@@ -2,7 +2,7 @@ import traceback
 import logging
 from models.class_models import PODataParsed, StatusEnum
 
-logger = logging.getLogger("PDF Processor")
+logger = logging.getLogger("PDF Helper")
 
 
 def build_success_response(file_path, document_type, po_number, items, metadata, capacity):

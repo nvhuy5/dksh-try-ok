@@ -313,7 +313,6 @@ async def execute_step(file_processor: ProcessorBase, context_data: ContextData,
         )
 
         try:
-
             method_name = step_config.function_name
             method = getattr(file_processor, method_name, None)
 

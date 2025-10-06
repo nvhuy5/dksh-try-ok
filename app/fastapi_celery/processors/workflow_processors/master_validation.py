@@ -31,12 +31,12 @@ class MasterValidation:
         self.masterdata_headers = self.masterdata_json.headers
         self.masterdata = pd.DataFrame(self.masterdata_json.items)
         # === Try to retrieve all traceability attributes when an object created
-        self.request_id = get_context_value("request_id")
-        self.traceability_context_values = {
-            key: val
-            for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
-            if (val := get_context_value(key)) is not None
-        }
+        # self.request_id = get_context_value("request_id")
+        # self.traceability_context_values = {
+        #     key: val
+        #     for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
+        #     if (val := get_context_value(key)) is not None
+        # }
 
     def header_validation(
         self, header_reference: List[Dict[str, Any]]
@@ -62,9 +62,7 @@ class MasterValidation:
                 extra={
                     "service": ServiceLog.METADATA_VALIDATION,
                     "log_type": LogType.ERROR,
-                    **self.traceability_context_values,
-                    "document_type": DocumentType.MASTER_DATA,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             message = (
@@ -82,9 +80,7 @@ class MasterValidation:
                     extra={
                         "service": ServiceLog.METADATA_VALIDATION,
                         "log_type": LogType.ERROR,
-                        **self.traceability_context_values,
-                        "document_type": DocumentType.MASTER_DATA,
-                        "traceability": self.request_id,
+                        "data": self.tracking_model,
                     },
                 )
                 message = f"Mismatch at position {idx}: expected '{schema_item['name']}', got '{header}'"
@@ -95,9 +91,7 @@ class MasterValidation:
                 extra={
                     "service": ServiceLog.METADATA_VALIDATION,
                     "log_type": LogType.TASK,
-                    **self.traceability_context_values,
-                    "document_type": DocumentType.MASTER_DATA,
-                    "traceability": self.request_id,
+                    "data": self.tracking_model,
                 },
             )
             updated = self.masterdata_json.model_copy(
@@ -175,9 +169,7 @@ class MasterValidation:
         return {
             "service": ServiceLog.METADATA_VALIDATION,
             "log_type": log_type,
-            **self.traceability_context_values,
-            "document_type": DocumentType.MASTER_DATA,
-            "traceability": self.request_id,
+            "data": self.tracking_model,
         }
 
     def _has_null(self, col: pd.Series) -> bool:

@@ -25,19 +25,19 @@ async def template_data_mapping(self, input_data: StepOutput) -> StepOutput:
     """
 
     try:
-        # === Traceability context (for logging and debugging) ===
-        self.request_id = get_context_value("request_id")
-        self.traceability_context_values = {
-            key: val
-            for key in [
-                "file_path",
-                "workflow_name",
-                "workflow_id",
-                "document_number",
-                "document_type",
-            ]
-            if (val := get_context_value(key)) is not None
-        }
+        # # === Traceability context (for logging and debugging) ===
+        # self.request_id = get_context_value("request_id")
+        # self.traceability_context_values = {
+        #     key: val
+        #     for key in [
+        #         "file_path",
+        #         "workflow_name",
+        #         "workflow_id",
+        #         "document_number",
+        #         "document_type",
+        #     ]
+        #     if (val := get_context_value(key)) is not None
+        # }
 
         # Step 1: Call template-parse API to get template ID
         template_parse_resp = await BEConnector(
@@ -125,9 +125,7 @@ async def template_data_mapping(self, input_data: StepOutput) -> StepOutput:
             extra={
                 "service": ServiceLog.MAPPING,
                 "log_type": LogType.ERROR,
-                **getattr(self, "traceability_context_values", {}),
-                "traceability": getattr(self, "request_id", None),
-                "document_type": DocumentType.ORDER,
+                "data": self.tracking_model,
             },
             exc_info=True,
         )

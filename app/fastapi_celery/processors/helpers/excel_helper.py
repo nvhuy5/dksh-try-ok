@@ -5,6 +5,7 @@ import re
 from typing import List, Dict
 
 import logging
+from models.tracking_models import TrackingModel
 from utils import log_helpers, ext_extraction
 from models.class_models import SourceType, PODataParsed, MasterDataParsed
 import config_loader
@@ -30,14 +31,14 @@ class ExcelHelper:
     and provides methods to parse the content into JSON format.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """Initialize the Excel processor with a file path and source type.
 
         Args:
             file (Path): The path to the Excel file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.file_path = file_path
+        self.tracking_model = TrackingModel
         self.source = source
         self.rows = self.read_rows()
         self.separator = METADATA_SEPARATOR
@@ -53,7 +54,7 @@ class ExcelHelper:
             List[List[str]]: A list of rows, where each row is a list of strings.
         """
         file_object = ext_extraction.FileExtensionProcessor(
-            file_path=self.file_path, source=self.source
+            tracking_model=self.tracking_model, source=self.source
         )
         file_object._extract_file_extension()
         self.document_type = file_object._get_document_type()

@@ -5,6 +5,7 @@ import chardet
 import logging
 from typing import List, Optional, Tuple
 
+from models.tracking_models import TrackingModel
 from utils import log_helpers, ext_extraction
 from models.class_models import PODataParsed, SourceType, StatusEnum
 import config_loader
@@ -22,14 +23,14 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 class CSVProcessor:
     """Processor for handling CSV PO template."""
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
         """Initialize with CSV file path and source type.
 
         Args:
             file_path (Path): The path to the CSV file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.file_path = file_path
+        self.tracking_model = tracking_model
         self.source = source
         self.po_number = None
         self.rows = self.load_csv_rows()
@@ -41,7 +42,7 @@ class CSVProcessor:
             list: A list of non-empty rows from the CSV file.
         """
         file_object = ext_extraction.FileExtensionProcessor(
-            file_path=self.file_path, source=self.source
+            tracking_model=self.tracking_model, source=self.source
         )
         file_object._extract_file_extension()
         self.document_type = file_object._get_document_type()
@@ -112,7 +113,7 @@ class CSVProcessor:
             items.extend(block)
 
         return PODataParsed(
-            original_file_path=self.file_path,
+            original_file_path=self.tracking_model.file_path,
             document_type=self.document_type,
             po_number=self.po_number,
             items=items,

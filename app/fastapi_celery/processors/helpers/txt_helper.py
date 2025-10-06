@@ -1,6 +1,7 @@
 from pathlib import Path
 import logging
 
+from models.tracking_models import TrackingModel
 from models.class_models import SourceType, PODataParsed, StatusEnum
 from utils import log_helpers, ext_extraction
 
@@ -22,14 +23,14 @@ class TxtHelper:
 
     def __init__(
         self,
-        file_path: Path,
+        tracking_model: TrackingModel,
         source: SourceType = SourceType.S3,
         encoding: str = "utf-8",
     ):
         """
         Initialize the TXT processor with file path, source type, and encoding.
         """
-        self.file_path = file_path
+        self.tracking_model = tracking_model
         self.source = source
         self.encoding = encoding
         self.capacity = None
@@ -39,9 +40,7 @@ class TxtHelper:
         """
         Extract and return the text content of the file using the specified encoding.
         """
-        file_object = ext_extraction.FileExtensionProcessor(
-            file_path=self.file_path, source=self.source
-        )
+        file_object = ext_extraction.FileExtensionProcessor(tracking_model=self.tracking_model, source=self.source)
 
         self.capacity = file_object._get_file_capacity()
         self.document_type = file_object._get_document_type()
@@ -62,7 +61,7 @@ class TxtHelper:
         items = parse_func(lines)
 
         return PODataParsed(
-            original_file_path=self.file_path,
+            original_file_path=self.tracking_model.file_path,
             document_type=self.document_type,
             po_number=str(len(items)),
             items=items,

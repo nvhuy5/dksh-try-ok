@@ -3,6 +3,7 @@ from pathlib import Path
 import logging
 import re
 
+from models.tracking_models import TrackingModel
 from models.class_models import SourceType, PODataParsed
 from processors.helpers.txt_helper import TxtHelper
 from utils import log_helpers
@@ -40,8 +41,8 @@ class Txt002Template(TxtHelper):
     Processor for file '20240726-131542-w25out20240726å…¨è¯.TXT' with tab-separated columns.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        super().__init__(file_path, source, encoding="big5")
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        super().__init__(tracking_model, source, encoding="big5")
 
     def parse_tab_separated_lines(self, lines: List[str]) -> List[dict]:
         items = []
@@ -62,8 +63,8 @@ class Txt003Template(TxtHelper):
     Processor for file 'DELV082001.TXT' with single-space-separated values.
     """
 
-    def __init__(self, file_path: Path, source: SourceType = SourceType.S3):
-        super().__init__(file_path, source, encoding="big5")
+    def __init__(self, tracking_model: TrackingModel, source: SourceType = SourceType.S3):
+        super().__init__(tracking_model, source, encoding="big5")
 
     def parse_space_separated_lines(self, lines: List[str]) -> List[dict]:
         items = []
