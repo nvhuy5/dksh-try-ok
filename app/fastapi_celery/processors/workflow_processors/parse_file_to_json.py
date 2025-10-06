@@ -2,7 +2,7 @@ import logging
 import traceback
 from utils import log_helpers
 from models.class_models import StatusEnum, StepOutput
-from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from processors.processor_registry import ProcessorRegistry
 from utils.middlewares.request_context import get_context_value
 

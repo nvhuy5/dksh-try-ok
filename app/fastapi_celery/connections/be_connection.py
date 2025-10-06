@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 import traceback
 import logging
 
-from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from connections.redis_connection import RedisConnector
 from utils import log_helpers
 from utils.middlewares.request_context import get_context_value
@@ -69,31 +69,81 @@ class BEConnector:
         self.params = params or {}
         self.metadata = {}
 
-    async def post(self) -> Optional[Dict[str, Any]]:
+    def post(self) -> Optional[Dict[str, Any]]:
         """Send a POST request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return await self._request("POST")
+        return self._request("POST")
 
-    async def get(self) -> Optional[Dict[str, Any]]:
+    def get(self) -> Optional[Dict[str, Any]]:
         """Send a GET request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return await self._request("GET")
+        return self._request("GET")
 
-    async def put(self) -> Optional[Dict[str, Any]]:
+    def put(self) -> Optional[Dict[str, Any]]:
         """Send a PUT request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return await self._request("PUT")
+        return self._request("PUT")
 
-    async def _request(self, method: str) -> Optional[Dict[str, Any]]:
+    # async def _request(self, method: str) -> Optional[Dict[str, Any]]:
+    #     """Send an HTTP request to the API endpoint using the specified method.
+
+    #     Args:
+    #         method (str): HTTP method to use ('POST', 'GET', or 'PUT').
+
+    #     Returns:
+    #         Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
+    #     """
+    #     async with httpx.AsyncClient() as client:
+    #         try:
+    #             headers = {"X-Token": API_KEY}
+    #             response = await client.request(
+    #                 method,
+    #                 self.api_url,
+    #                 headers=headers,
+    #                 json=self.body_data,
+    #                 params=self.params,
+    #             )
+    #             response.raise_for_status()
+    #             response_data = response.json()
+    #             return response_data.get("data", {})
+    #         except httpx.HTTPStatusError as e:
+    #             short_tb = "".join(
+    #                 traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+    #             )
+    #             logger.error(
+    #                 f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
+    #                 extra={
+    #                     "service": ServiceLog.DATABASE,
+    #                     "log_type": LogType.ERROR,
+    #                     **self.traceability_context_values,
+    #                     "traceability": self.request_id,
+    #                 },
+    #             )
+    #         except Exception as e:
+    #             short_tb = "".join(
+    #                 traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+    #             )
+    #             logger.exception(
+    #                 f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
+    #                 extra={
+    #                     "service": ServiceLog.DATABASE,
+    #                     "log_type": LogType.ERROR,
+    #                     **self.traceability_context_values,
+    #                     "traceability": self.request_id,
+    #                 },
+    #             )
+    #     return None
+
+    def _request(self, method: str) -> Optional[Dict[str, Any]]:
         """Send an HTTP request to the API endpoint using the specified method.
 
         Args:
@@ -102,10 +152,10 @@ class BEConnector:
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        async with httpx.AsyncClient() as client:
-            try:
+        try:
+            with httpx.Client(verify=False) as client:
                 headers = {"X-Token": API_KEY}
-                response = await client.request(
+                response = client.request(
                     method,
                     self.api_url,
                     headers=headers,
@@ -115,33 +165,34 @@ class BEConnector:
                 response.raise_for_status()
                 response_data = response.json()
                 return response_data.get("data", {})
-            except httpx.HTTPStatusError as e:
-                short_tb = "".join(
-                    traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-                )
-                logger.error(
-                    f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
-                    extra={
-                        "service": ServiceLog.DATABASE,
-                        "log_type": LogType.ERROR,
-                        **self.traceability_context_values,
-                        "traceability": self.request_id,
-                    },
-                )
-            except Exception as e:
-                short_tb = "".join(
-                    traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-                )
-                logger.exception(
-                    f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
-                    extra={
-                        "service": ServiceLog.DATABASE,
-                        "log_type": LogType.ERROR,
-                        **self.traceability_context_values,
-                        "traceability": self.request_id,
-                    },
-                )
+        except httpx.HTTPStatusError as e:
+            short_tb = "".join(
+                traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+            )
+            logger.error(
+                f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
+                extra={
+                    "service": ServiceLog.DATABASE,
+                    "log_type": LogType.ERROR,
+                    **self.traceability_context_values,
+                    "traceability": self.request_id,
+                },
+            )
+        except Exception as e:
+            short_tb = "".join(
+                traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+            )
+            logger.exception(
+                f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
+                extra={
+                    "service": ServiceLog.DATABASE,
+                    "log_type": LogType.ERROR,
+                    **self.traceability_context_values,
+                    "traceability": self.request_id,
+                },
+            )
         return None
+
 
     def get_field(self, key: str) -> Optional[Any]:
         """

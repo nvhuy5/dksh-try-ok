@@ -1,11 +1,11 @@
 from typing import Dict, Any, Callable, Optional
 from dataclasses import dataclass
 
-@dataclass
-class MasterLoadDataBody:
-    fileName: str
-    loadMode: str = "INSERT"
-    data: Any
+# @dataclass
+# class MasterLoadDataBody:
+#     fileName: str
+#     loadMode: str = "INSERT"
+#     data: Any
 
 
 @dataclass

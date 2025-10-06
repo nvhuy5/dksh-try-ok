@@ -79,10 +79,26 @@ async def process_file(data: FilePathRequest, http_request: Request) -> Dict[str
         if not (data.celery_id and data.celery_id.strip()):
             data.celery_id = getattr(http_request.state, "request_id", str(uuid4()))
 
-        celery_task.task_execute.apply_async(
-            kwargs=data,
+        celery_task.task_execute.apply(
+            kwargs={"data": data.model_dump()},
             task_id=data.celery_id,
         )
+        
+        # celery_task.task_execute.apply_async(
+        #     kwargs=data,
+        #     task_id=data.celery_id,
+        # )
+        
+        # celery_task.task_execute.apply(
+        #     kwargs={
+        #         "file_path": data.file_path,
+        #         "celery_id": data.celery_id,
+        #         "project_name": data.project,
+        #         "source": data.source,
+        #         "rerun_attempt": data.rerun_attempt,
+        #     },
+        #     task_id=data.celery_id,
+        # )
 
         logger.info(
             f"Submitted Celery task: {data.celery_id}",

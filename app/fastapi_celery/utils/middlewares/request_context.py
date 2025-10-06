@@ -1,6 +1,6 @@
 import contextvars
 from typing import Optional
-from app.fastapi_celery.models.tracking_models import TrackingModel
+from models.tracking_models import TrackingModel
 
 # Context variable to store TraceabilityContextModel
 traceability_context: contextvars.ContextVar[Optional[TrackingModel]] = (

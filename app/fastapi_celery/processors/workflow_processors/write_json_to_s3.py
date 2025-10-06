@@ -7,7 +7,7 @@ from models.class_models import (
     MasterDataParsed,
     PODataParsed,
 )
-from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from utils import log_helpers, read_n_write_s3
 import logging
 import traceback

@@ -6,7 +6,7 @@ from utils import log_helpers
 from models.class_models import StatusEnum, StepOutput, ApiUrl, DocumentType
 from connections.be_connection import BEConnector
 from utils.middlewares.request_context import get_context_value
-from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 
 # === Logger setup ===
 logger_name = f"Workflow Processor - {__name__}"

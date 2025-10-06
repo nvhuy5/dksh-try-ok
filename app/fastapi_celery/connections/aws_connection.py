@@ -9,7 +9,7 @@ import traceback
 import boto3
 from botocore.exceptions import ClientError
 import config_loader
-from app.fastapi_celery.models.tracking_models import ServiceLog, LogType
+from models.tracking_models import ServiceLog, LogType
 from utils.middlewares.request_context import get_context_value
 
 # ===

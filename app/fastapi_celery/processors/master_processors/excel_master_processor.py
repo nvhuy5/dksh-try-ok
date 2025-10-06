@@ -3,7 +3,7 @@ import traceback
 import logging
 from utils import log_helpers
 from models.class_models import MasterDataParsed, SourceType, StatusEnum
-from app.fastapi_celery.processors.helpers import excel_helper
+from processors.helpers import excel_helper
 import config_loader
 
 METADATA_SEPARATOR = config_loader.get_env_variable("METADATA_SEPARATOR", "：")

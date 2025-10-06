@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, Type
-from app.fastapi_celery.processors.processor_template import ProcessorTemplate
+from processors.processor_template import ProcessorTemplate
 from connections.be_connection import BEConnector
 from models.class_models import ApiUrl, DocumentType
 from utils import log_helpers
