@@ -37,7 +37,7 @@ def extract_metadata(self) -> StepOutput:
         self.document_type = file_processor.document_type
         self.target_bucket_name = file_processor.target_bucket_name
         self.file_record = {
-            "file_path": self.file_path,
+            "file_path": self.tracking_model.file_path,
             "file_path_parent": file_processor.file_path_parent,
             "file_name": file_processor.file_name,
             "file_extension": file_processor.file_extension,
@@ -45,7 +45,7 @@ def extract_metadata(self) -> StepOutput:
         }
 
         logger.info(
-            f"Metadata extracted for file: {self.file_path}",
+            f"Metadata extracted for file: {self.tracking_model.file_path}",
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.TASK,

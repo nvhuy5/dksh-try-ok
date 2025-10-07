@@ -1,5 +1,5 @@
 # Standard Library Imports
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from models.tracking_models import TrackingModel
 from processors.processor_nodes import WORKFLOW_PROCESSORS
@@ -46,7 +46,7 @@ class ProcessorBase:
         self.document_type = None
         self.target_bucket_name = None
         self.tracking_model = tracking_model
-        self.current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         self._register_workflow_processors()
         self.extract_metadata()
 

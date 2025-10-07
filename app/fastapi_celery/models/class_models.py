@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 import config_loader
 from urllib.parse import urljoin
@@ -156,9 +156,15 @@ class WorkflowModel(BaseModel):
     """
 
     id: str
-    name: str
-    workflowSteps: List[WorkflowStep]
+    name: str | None = None
+    status: str | None = None
+    isMasterDataWorkflow: Optional[bool] = None
     sapMasterData: Optional[bool] = None
+    customerId: str | None = None
+    folderName: str | None = None
+    flowId: str | None = None
+    customerFolderName: str | None = None
+    workflowSteps: List[WorkflowStep]
 
 
 class WorkflowSession(BaseModel):
@@ -302,47 +308,44 @@ class PODataParsed(BaseModel):
 
 
 class ApiConfig(BaseModel):
-    url: Optional[str] = None
-    request: Optional[Dict[str, Any]] = None
-    response: Optional[Dict[str, Any]] = None
+    url: str | None = None
+    method: str | None = None
+    request: Dict[str, Any] | None = None
+    response: Dict[str, Any] | None = None
 
 
 class SessionConfig(BaseModel):
-    session_start_api: ApiConfig
-    session_finish_api: ApiConfig
+    session_start_api: ApiConfig = Field(default_factory=ApiConfig)
+    session_finish_api: ApiConfig = Field(default_factory=ApiConfig)
 
 
 class WorkflowDetailConfig(BaseModel):
-    filter_api: ApiConfig
-    metadata_api: Optional[SessionConfig] = None
+    filter_api: ApiConfig = Field(default_factory=ApiConfig)
+    metadata_api: SessionConfig | None = Field(default_factory=SessionConfig)
 
 
 class StepDetailConfig(BaseModel):
-    Step_start_api: ApiConfig
-    Step_finish_api: ApiConfig
+    Step_start_api: ApiConfig = Field(default_factory=ApiConfig)
+    Step_finish_api: ApiConfig = Field(default_factory=ApiConfig)
 
 
 class StepDetail(BaseModel):
-    step: Optional[Dict[str, Any]] = None
+    step: Dict[str, Any] | None = None
     config_api: Any | None = None
-    metadata_api: Optional[StepDetailConfig] = None
-
+    metadata_api: StepDetailConfig | None = Field(default_factory=StepDetailConfig)
+    
 
 class ContextData(BaseModel):
     request_id: str
-    file_path: Optional[str] = None
-    original_file_path: Path
-    headers: List[str] | Dict[str, Any]
-    po_number: Optional[str]
-    items: List[Dict[str, Any]] | Dict[str, Any]
-    metadata: Optional[Dict[str, str]]
-    project_name: Optional[str] = None
-    source_name: Optional[str] = None
-    document_type: DocumentType
-    source_type: SourceType
-    step_status: Optional[StatusEnum]
-    step_messages: Optional[List[str]] = None
-    capacity: str
-    step_detail: Optional[List[StepDetail]] = None
-    workflow_detail: Optional[WorkflowDetailConfig] = None
-    json_output: Optional[str] = None
+    data_input: Any | None = None
+    project_name: str | None = None
+    source_name: str | None = None
+    document_type: DocumentType | None = None
+    source_type: SourceType | None = None
+    step_status: StatusEnum | None = None
+    step_messages: list[str] | None = None
+    step_detail: list[StepDetail] | None = None
+    workflow_detail: WorkflowDetailConfig | None = None
+    
+    class Config:
+        extra = "allow"

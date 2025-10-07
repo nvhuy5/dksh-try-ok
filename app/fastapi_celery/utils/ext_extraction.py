@@ -65,7 +65,7 @@ class FileExtensionProcessor:
         self.file_name = None
         self.client = None
         self.document_type = self._get_document_type()
-        self.target_bucket_name = self._get_target_bucket(self.document_type)
+        self.target_bucket_name = self._get_target_bucket()
 
         self._prepare_object()
 
@@ -138,7 +138,7 @@ class FileExtensionProcessor:
             self.file_name = Path(self.file_path).name
             self.file_path_parent = str(Path(self.file_path).parent) + "/"
 
-        except Exception:
+        except Exception as e:
             logger.error(
                 f"Error accessing file '{self.file_path}': {traceback.format_exc()}",
                 extra={
@@ -148,7 +148,7 @@ class FileExtensionProcessor:
                 },
             )
             raise FileNotFoundError(
-                f"File '{self.file_path}' could not be loaded from S3."
+                f"File '{self.file_path}' could not be loaded from S3. Error: {str(e)}"
             )
 
     def _extract_file_extension(self) -> None:  # pragma: no cover  # NOSONAR
@@ -292,7 +292,7 @@ class FileExtensionProcessor:
                 },
             )
             raise ValueError(
-                f"Error determining document type from path '{self.file_path}': {e}"
+                f"Error determining document type from path '{self.file_path}': {str(e)}"
             )
 
     def _get_target_bucket(self) -> Optional[str]:

@@ -30,25 +30,6 @@ logger.debug("Starting Redis Connection...")
 # === Store per-task workflow step statuses in Redis === #
 class RedisConnector:
     def __init__(self):
-        # # === Try to retrieve all traceability attributes when an object created
-        # self.request_id = get_context_value("request_id")
-        # self.traceability_context_values = {
-        #     key: val
-        #     for key in [
-        #         "file_path",
-        #         "workflow_name",
-        #         "workflow_id",
-        #         "document_number",
-        #         "document_type",
-        #     ]
-        #     if (val := get_context_value(key)) is not None
-        # }
-        # logger.debug(
-        #     f"Function: {__name__}\n"
-        #     f"RequestID: {self.request_id}\n"
-        #     f"TraceabilityContext: {self.traceability_context_values}"
-        # )
-
         self.redis_client = redis.Redis(
             host=config_loader.get_env_variable("REDIS_HOST", "localhost"),
             port=config_loader.get_env_variable("REDIS_PORT", 6379),
@@ -102,7 +83,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ERROR,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return False
@@ -131,7 +112,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ERROR,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return {}
@@ -160,7 +141,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ERROR,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return {}
@@ -186,7 +167,7 @@ class RedisConnector:
             extra={
                 "service": ServiceLog.DATABASE,
                 "log_type": LogType.ACCESS,
-                "task_id": self.task_id,
+                "task_id": task_id,
             },
         )
         try:
@@ -198,7 +179,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ACCESS,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return True
@@ -211,7 +192,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ERROR,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return False
@@ -236,7 +217,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ACCESS,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             hash_data = self.redis_client.hgetall(key)
@@ -255,7 +236,7 @@ class RedisConnector:
                 extra={
                     "service": ServiceLog.DATABASE,
                     "log_type": LogType.ERROR,
-                    "task_id": self.task_id,
+                    "task_id": task_id,
                 },
             )
             return None

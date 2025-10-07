@@ -2,6 +2,7 @@ import json
 import traceback
 import logging
 import asyncio
+from urllib.parse import urlparse
 from pydantic import BaseModel
 from connections.be_connection import BEConnector
 from processors.processor_nodes import PROCESS_DEFINITIONS
@@ -21,7 +22,7 @@ from typing import Dict, Any, Callable, List, Optional
 from utils import log_helpers
 import config_loader
 from utils.middlewares.request_context import get_context_value, set_context_values
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ===
 # Set up logging
@@ -143,18 +144,18 @@ def extract_to_wrapper(
         context: Dict[str, Any], result: Dict[str, Any], ctx_key: str, result_key: str
     ) -> None:
         try:
-            request_id = get_context_value("request_id")
-            traceability_context_values = {
-                key: val
-                for key in [
-                    "file_path",
-                    "workflow_name",
-                    "workflow_id",
-                    "document_number",
-                    "document_type",
-                ]
-                if (val := get_context_value(key)) is not None
-            }
+            # request_id = get_context_value("request_id")
+            # traceability_context_values = {
+            #     key: val
+            #     for key in [
+            #         "file_path",
+            #         "workflow_name",
+            #         "workflow_id",
+            #         "document_number",
+            #         "document_type",
+            #     ]
+            #     if (val := get_context_value(key)) is not None
+            # }
             return func(context, result, ctx_key, result_key)
         except Exception as e:
             context[ctx_key] = None
@@ -166,8 +167,7 @@ def extract_to_wrapper(
                 extra={
                     "service": ServiceLog.DATA_TRANSFORM,
                     "log_type": LogType.ERROR,
-                    **traceability_context_values,
-                    "traceability": request_id,
+                    "data": context,
                 },
             )
 
@@ -188,7 +188,7 @@ def extract(
 
 
 # Suppress Cognitive Complexity warning due to step-specific business logic  # NOSONAR
-async def execute_step(file_processor: ProcessorBase, context_data: ContextData, step: WorkflowStep) -> StepOutput:
+def execute_step(file_processor: ProcessorBase, context_data: ContextData, step: WorkflowStep) -> StepOutput:
     """
     Executes a single workflow step using the given file processor.
 
@@ -206,105 +206,92 @@ async def execute_step(file_processor: ProcessorBase, context_data: ContextData,
     """
 
     step_name = step.stepName
-    logger.info(f"Starting execute step: [{step_name}]")
+    logger.info(f"[{context_data.request_id}] Starting execute step: [{step_name}]")
 
-    try:
-        step_config = PROCESS_DEFINITIONS.get(step_name)
-        if not step_config:
-            raise ValueError(f"The step [{step_name}] is not yet defined")
-        
-        s3_key_prefix = build_s3_key_prefix(file_processor, context_data, step, step_config)
+    step_config = PROCESS_DEFINITIONS.get(step_name)
+    if not step_config:
+        raise ValueError(f"[{context_data.request_id}] The step [{step_name}] is not yet defined")
+    
+    s3_key_prefix = build_s3_key_prefix(file_processor, context_data, step, step_config)
+    if step_config.require_data_output:
+        context_data.s3_key_prefix = s3_key_prefix
+    
+    data_input = (
+        context_data.data_input
+        if hasattr(step_config, "data_input")
+        and context_data.model_dump().get(step_config.data_input)
+        else None
+    )
 
-        items = (
-            context_data.items
-            if hasattr(step_config, "data_input")
-            and context_data.get(step_config.data_input)
-            else None
-        )
+    config_api_ctx = {
+        "file_name": file_processor.file_record["file_name"],
+        "file_name_without_ext": str(file_processor.file_record["file_name"]).removesuffix(
+            file_processor.file_record["file_extension"]
+        ),
+        "workflowStepId": step.workflowStepId,
+        "templateFileParseId": None,
+        "items": data_input,
+    }
 
-        config_api_ctx = {
-            "file_name": file_processor.file_record["file_name"],
-            "file_name_without_ext": str(file_processor.file_record["file_name"]).removesuffix(
-                file_processor.file_record["file_extension"]
-            ),
-            "workflowStepId": step.workflowStepId,
-            "templateFileParseId": None,
-            "items": items,
-        }
+    context_api = get_context_api(step_name, config_api_ctx)
+    config_api_records = []
+    if not context_api:
+        logger.warning(f"[{context_data.request_id}] There is no API context for this step: {step_name}")
+    else:            
+        for call_def in context_api:
+            # validate context
+            missing = [k for k in call_def["required_context"] if k not in config_api_ctx]
+            if missing:
+                raise RuntimeError(f"Missing context keys for step '{step_name}': {missing}")
 
-        build_api = build_api_request(step_name, config_api_ctx)
+            url = call_def["url"](config_api_ctx) if callable(call_def["url"]) else call_def["url"]
+            method = call_def["method"]
+            params = call_def["params"](config_api_ctx) if callable(call_def["params"]) else call_def["params"]
+            body = call_def["body"](config_api_ctx) if callable(call_def["body"]) else call_def["body"]
 
-        if not build_api:
-            logger.warning(f"No API resolution for step: {step_name}")
-            config_api = {}
+            connector = BEConnector(url, params=params, body_data=body)
+            response = (connector.get() if method == "get" else connector.post())
+
+            # extract dynamic values if needed
+            if "extract" in call_def:
+                call_def["extract"](response, config_api_ctx)
+
+            parsed_url = urlparse(url)
+            short_url = parsed_url.path
+
+            config_api_records.append({
+                "url": short_url,
+                "method": method.upper(),
+                "request": {"params": params, "body": body},
+                "response": response
+            })
+
+    context_data.step_detail[step.stepOrder - 1].config_api = config_api_records
+
+    is_done = False
+    step_result_in_s3 = file_processor.check_step_result_exists_in_s3(
+        task_id=context_data.request_id,
+        step_name=step_name,
+        rerun_attempt=file_processor.tracking_model.rerun_attempt,
+    )
+
+    if step_result_in_s3:
+        if hasattr(step_result_in_s3, "step_status"):
+            is_done = step_result_in_s3.step_status == "1"
         else:
-            if "runner" in build_api:
-                # run_chain now uses BEConnector
-                config_api = await build_api["runner"](config_api_ctx)
-            else:
-                url = build_api["url"]
-                method = build_api["method"]
-                params = build_api["params"]
-                body = build_api["body"]
-                config_api_connector = BEConnector(url, params=params, body_data=body)
-                if method == "get":
-                    config_api = await config_api_connector.get()
-                elif method == "post":
-                    config_api = await config_api_connector.post()
+            is_done = False
+            
+    context_data.is_done = is_done
+    
+    logger.info(
+        f"[{context_data.request_id}] Step '{step_name}' already completed in S3 (is_done={is_done}). "
+        f"Result: {step_result_in_s3}"
+    )
 
-        context_data.step_detail[step.stepOrder - 1].config_api = config_api
 
-        is_done = False
-        step_result = file_processor.check_step_result_exists_in_s3(
-            task_id=context_data.request_id,
-            step_name=step_name,
-            rerun_attempt=file_processor.tracking_model.rerun_attempt,
-        )
-
-        if step_result:
-            if hasattr(step_result, "step_status"):
-                # MasterDataParsed has step_status
-                is_done = step_result.step_status == "1"
-            else:
-                # PODataParsed does not have step_status
-                is_done = False
-
+    if is_done:
         logger.info(
-            f"Step '{step.stepName}' already_done: {is_done}, "
-            f"result_step: {step_result}"
-        )
-
-        if is_done:
-            if step_config.require_data_output:
-                context_data["s3_key_prefix"] = s3_key_prefix
-
-            logger.info(
-                f"[SKIP] Step '{step.stepName}' already has materialized data in S3. Skipping execution.",
-                extra={
-                    "service": ServiceLog.DATA_TRANSFORM,
-                    "log_type": LogType.TASK,
-                    "data": file_processor.tracking_model,
-                },
-            )
-
-            # Save output
-            output_key = step_config.data_output
-            if output_key:
-                step_output_data = StepOutput(
-                    output=template_helper.parse_data(
-                        file_processor.document_type, data=step_result
-                    ),
-                    step_status=StatusEnum.SUCCESS,
-                    step_failure_message=None,
-                )
-                context_data[output_key] = step_output_data
-                return step_output_data
-            else:
-                return
-
-        logger.info(
-            f"Executing step: {step_name}, already_done: {is_done}"
-            + (f" | Rerun attempt: {file_processor.tracking_model.rerun_attempt}" if file_processor.tracking_model.rerun_attempt is not None else ""),
+            f"[{context_data.request_id}] [SKIP] Step '{step_name}' already has materialized data in S3. Skipping execution.",
             extra={
                 "service": ServiceLog.DATA_TRANSFORM,
                 "log_type": LogType.TASK,
@@ -312,150 +299,134 @@ async def execute_step(file_processor: ProcessorBase, context_data: ContextData,
             },
         )
 
-        try:
-            method_name = step_config.function_name
-            method = getattr(file_processor, method_name, None)
-
-            if method is None or not callable(method):
-                raise AttributeError(
-                    f"Function '{method_name}' not found in FileProcessor."
-                )
-
-            # Resolve args
-            args, kwargs = resolve_args(step_config, context_data, step_name)
-            log_for_args = (
-                json.dumps(step_config.args, default=str)
-                if step_config.args
-                else step_config.data_input
+        # Save output
+        key_name = step_config.data_output
+        if key_name:
+            step_output_data = StepOutput(
+                output=template_helper.parse_data(file_processor.document_type, data=step_result_in_s3),
+                step_status=StatusEnum.SUCCESS,
+                step_failure_message=None,
             )
-            logger.info(
-                (
-                    f"Calling {method_name} with args: {log_for_args} - kwargs: {json.dumps(kwargs, default=str)}"
-                    if log_for_args
-                    else f"Calling {method_name} with no args provided!"
-                ),
-                extra={
-                    "service": ServiceLog.DATA_TRANSFORM,
-                    "log_type": LogType.TASK,
-                    "data": file_processor.tracking_model,
-                },
-            )
+            setattr(context_data, key_name, step_output_data)
+            return step_output_data
+        else:
+            return
+    
+    logger.info(
+        f"[{context_data.request_id}] Executing step: {step_name} | already completed in S3 (is_done={is_done})"
+        + (f" | rerun_attempt: {file_processor.tracking_model.rerun_attempt}" if file_processor.tracking_model.rerun_attempt is not None else ""),
+        extra={
+            "service": ServiceLog.DATA_TRANSFORM,
+            "log_type": LogType.TASK,
+            "data": file_processor.tracking_model,
+        },
+    )
 
-            # Call method (await if coroutine)
-            call_kwargs = kwargs or {}
-            result = (
-                await method(*args, **call_kwargs)
-                if asyncio.iscoroutinefunction(method)
-                else method(*args, **call_kwargs)
+    try:
+        method_name = step_config.function_name
+        method = getattr(file_processor, method_name, None)
+
+        if method is None or not callable(method):
+            raise AttributeError(
+                f"Function '{method_name}' not found in FileProcessor."
             )
 
-            logger.info(
-                f"Step '{step_name}' executed successfully.",
-                extra={
-                    "service": ServiceLog.DATA_TRANSFORM,
-                    "log_type": LogType.TASK,
-                    "data": file_processor.tracking_model,
-                },
-            )
+        # Resolve args
+        args, kwargs = resolve_args(step_config, context_data, step_name)
+        log_for_args = (
+            json.dumps(step_config.args, default=str)
+            if step_config.args
+            else step_config.data_input
+        )
+        logger.info(
+            (
+                f"Calling {method_name} with args: {log_for_args} - kwargs: {json.dumps(kwargs, default=str)}"
+                if log_for_args
+                else f"Calling {method_name} with no args provided!"
+            ),
+            extra={
+                "service": ServiceLog.DATA_TRANSFORM,
+                "log_type": LogType.TASK,
+                "data": file_processor.tracking_model,
+            },
+        )
 
-            # Save output
-            output_key = step_config.data_output
-            if output_key:
-                context_data[output_key] = result
+        # Call method (await if coroutine)
+        call_kwargs = kwargs or {}
+        result = (
+            # await method(*args, **call_kwargs)
+            asyncio.run(method(*args, **call_kwargs))
+            if asyncio.iscoroutinefunction(method)
+            else method(*args, **call_kwargs)
+        )
 
-            # Extract specific subfields into context for further usage
-            extract_map = step_config.extract_to or {}
-            logger.info(f"Extracted map for further usage: {extract_map}")
+        logger.info(
+            f"[{context_data.request_id}] Step '{step_name}' executed successfully.",
+            extra={
+                "service": ServiceLog.DATA_TRANSFORM,
+                "log_type": LogType.TASK,
+                "data": file_processor.tracking_model,
+            },
+        )
 
-            # === Step 1: Filter and publish only valid traceability keys ===
-            valid_keys = TrackingModel.model_fields.keys()
-            result_dump = get_model_dump_if_possible(result)
-            filtered_context_data = {
-                ctx_key: result_dump[result_key]
-                for ctx_key, result_key in extract_map.items()
-                if ctx_key in valid_keys and result_key in result_dump
-            }
-            
-            set_context_values(**filtered_context_data)
+        # Save output
+        key_name = step_config.data_output
+        if key_name:
+            setattr(context_data, key_name, result)
 
-            # === Step 2: Refresh context values ===
-            traceability_context_values = {
-                key: val
-                for key in [
-                    "file_path",
-                    "workflow_name",
-                    "workflow_id",
-                    "document_number",
-                    "document_type",
-                ]
-                if (val := get_context_value(key)) is not None
-            }
+        # Extract specific subfields into context for further usage
+        extract_map = step_config.extract_to or {}
+        logger.info(f"Extracted map for further usage: {extract_map}")
 
-            logger.debug(
-                f"Update extract_to attribute...\n"
-                f"Function: {__name__}\n"
-                f"RequestID: {context_data.request_id}\n"
-                f"TraceabilityContext: {traceability_context_values}"
-            )
+        # === Step 1: Filter and publish only valid keys ===
+        valid_keys = TrackingModel.model_fields.keys()
+        result_dump = get_model_dump_if_possible(result)
+        filtered_context_data = {
+            ctx_key: result_dump[result_key]
+            for ctx_key, result_key in extract_map.items()
+            if ctx_key in valid_keys and result_key in result_dump
+        }
 
-            # === Step 3: Attempt to extract all values into `context` ===
-            for ctx_key, result_key in extract_map.items():
-                extract(context_data, result_dump, ctx_key, result_key)
+        logger.debug(
+            f"Update extract_to attribute...\n"
+            f"Function: {__name__}\n"
+            f"RequestID: {context_data.request_id}\n"
+            f"filtered_context_data: {filtered_context_data}"
+        )
 
-            return result
+        # === Step 2: Attempt to extract all values into `context` ===
+        for ctx_key, result_key in extract_map.items():
+            extract(context_data, result_dump, ctx_key, result_key)
 
-        except AttributeError as e:
-            short_tb = "".join(
-                traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-            )
-            logger.error(
-                f"[Missing step]: {str(e)}!\n{short_tb}",
-                extra={
-                    "service": ServiceLog.DATA_TRANSFORM,
-                    "log_type": LogType.ERROR,
-                    "data": file_processor.tracking_model,
-                },
-            )
-            raise
-        except Exception as e:
-            short_tb = "".join(
-                traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-            )
-            logger.exception(
-                f"Exception during step '{step_name}': {str(e)}!\n{short_tb}",
-                extra={
-                    "service": ServiceLog.DATA_TRANSFORM,
-                    "log_type": LogType.ERROR,
-                    "data": file_processor.tracking_model,
-                },
-            )
-            raise
-
-
-        # alias_entry = PROCESS_DEFINITIONS.get(step_name, {"function_name": step_name})
-        # method_name = alias_entry["function_name"]
-        # requires_input = alias_entry.get("data_input", False)
-        # method = getattr(file_processor, method_name, None)
-
-        # if method is None or not callable(method):
-        #     raise AttributeError(
-        #         f"Function '{method_name}' not found in FileProcessor."
-        #     )
-
-        # if asyncio.iscoroutinefunction(method):
-        #     result = await method(data_input) if requires_input else await method()
-        # else:
-        #     result = method(data_input) if requires_input else method()
-
-        # logger.info(f"Step '{step_name}' executed successfully.")
-        # return result
+        return result
 
     except AttributeError as e:
-        logger.error(f"[Missing step]: {str(e)}")
-        return None
+        short_tb = "".join(
+            traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+        )
+        logger.error(
+            f"[Missing step]: {str(e)}!\n{short_tb}",
+            extra={
+                "service": ServiceLog.DATA_TRANSFORM,
+                "log_type": LogType.ERROR,
+                "data": file_processor.tracking_model,
+            },
+        )
+        raise
     except Exception as e:
-        logger.exception(f"Exception during step '{step_name}': {str(e)}")
-        return None
+        short_tb = "".join(
+            traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+        )
+        logger.exception(
+            f"Exception during step '{step_name}': {str(e)}!\n{short_tb}",
+            extra={
+                "service": ServiceLog.DATA_TRANSFORM,
+                "log_type": LogType.ERROR,
+                "data": file_processor.tracking_model,
+            },
+        )
+        raise
+
 
 
 def build_s3_key_prefix(
@@ -465,36 +436,21 @@ def build_s3_key_prefix(
     step_config: StepDefinition,
 ) -> str:
     """
-    Build the S3 key prefix for storing processed or master data files.
+    Build S3 prefix for both Processor workflow and Master Data workflow.
 
-    The prefix structure differs based on whether the workflow is for
-    master data or a standard processing workflow.
-
-    Examples:
-        - Processor workflow:
-          {target_store_data}/{folderName}/{customerFolderName}/{yyyyMMdd}/{celery_id}/{step_name}
-        - Master data workflow:
-          {target_store_data}/{fileName}/{yyyyMMdd}/{celery_id}/{step_name}
-
-    Args:
-        file_processor (ProcessorBase): The processor instance containing file and tracking info.
-        context_data (ContextData): Context object holding workflow and API response data.
-        step (WorkflowStep): The current workflow step being executed.
-        step_config (StepDefinition): Step configuration model, defines storage settings.
-
-    Returns:
-        str: Constructed S3 key prefix path.
+    Processor workflow: {materialized_step_data_loc}/{folderName}/{customerFolderName}/{yyyyMMdd}/{celery_id}/{step_order}_{step_name}
+    Master data workflow: {materialized_step_data_loc}/{fileName}/{yyyyMMdd}/{celery_id}/{step_order}_{step_name}
     """
     filter_api = context_data.workflow_detail.filter_api
-    metadata_api = context_data.workflow_detail.metadata_api
     is_master_data = filter_api.request.get("isMasterDataWorkflow", False)
-    date_str = datetime.now().strftime("%Y%m%d")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    step_order = f"{int(step.stepOrder):02}"
 
     if is_master_data:
         prefix_part = file_processor.file_record.file_name
     else:
-        folder = filter_api.response.get("folderName")
-        customer = filter_api.response.get("customerFolderName")
+        folder = filter_api.response.folderName
+        customer = filter_api.response.customerFolderName
         if not folder or not customer:
             logger.error(
                 "Missing 'folderName' or 'customerFolderName' in filter_api response. "
@@ -506,138 +462,100 @@ def build_s3_key_prefix(
         f"{step_config.target_store_data}/"
         f"{prefix_part}/{date_str}/"
         f"{file_processor.tracking_model.request_id}/"
-        f"{step.stepName}"
+        f"{step_order}_{step.stepName}"
     )
 
 
-def build_api_request(step_name: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def get_context_api(step_name: str, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Build API request or runner config for a workflow step.
-
-    Args:
-        step_name: Workflow step name.
-        context: Context data (e.g., file_name, workflowStepId).
-
-    Returns:
-        API config dict or runner callable, or None if not matched.
+    Return a list of API call definitions (each dict: url, method, params, body).
+    This replaces the previous 'runner' pattern with a simple sequential list.
     """
     step_name_upper = step_name.upper()
 
     step_map = {
-        "FILE_PARSE": {
-            "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE,
-            "method": "get",
-            "required_context": ["workflowStepId"],
-            "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
-            "body": None,
-        },
-        "VALIDATE_HEADER": {
-            "url": ApiUrl.MASTERDATA_HEADER_VALIDATION,
-            "method": "get",
-            "required_context": ["file_name"],
-            "params": lambda ctx: {"fileName": ctx["file_name"]},
-            "body": None,
-        },
-        "VALIDATE_DATA": {
-            "url": ApiUrl.MASTERDATA_COLUMN_VALIDATION,
-            "method": "get",
-            "required_context": ["file_name"],
-            "params": lambda ctx: {"fileName": ctx["file_name"]},
-            "body": None,
-        },
-        "MASTER_DATA_LOAD": {
-            "url": ApiUrl.MASTER_DATA_LOAD_DATA,
-            "method": "post",
-            "required_context": ["file_name", "items"],
-            "params": lambda ctx: {"fileName": ctx["file_name"]},
-            "body": lambda ctx: {
-                "fileName": ctx["file_name"],
-                "data": ctx["items"],
+        "FILE_PARSE": [
+            {
+                "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE.full_url(),
+                "method": "get",
+                "required_context": ["workflowStepId"],
+                "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
+                "body": None,
+            }
+        ],
+        "VALIDATE_HEADER": [
+            {
+                "url": ApiUrl.MASTERDATA_HEADER_VALIDATION.full_url(),
+                "method": "get",
+                "required_context": ["file_name"],
+                "params": lambda ctx: {"fileName": ctx["file_name"]},
+                "body": None,
+            }
+        ],
+        "VALIDATE_DATA": [
+            {
+                "url": ApiUrl.MASTERDATA_COLUMN_VALIDATION.full_url(),
+                "method": "get",
+                "required_context": ["file_name"],
+                "params": lambda ctx: {"fileName": ctx["file_name"]},
+                "body": None,
+            }
+        ],
+        "MASTER_DATA_LOAD": [
+            {
+                "url": ApiUrl.MASTER_DATA_LOAD_DATA.full_url(),
+                "method": "post",
+                "required_context": ["file_name_without_ext", "items"],
+                "params": None,
+                "body": lambda ctx: {
+                    "fileName": ctx["file_name_without_ext"],
+                    "data": ctx["items"],
+                },
+            }
+        ],
+        "TEMPLATE_DATA_MAPPING": [
+            {
+                "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE.full_url(),
+                "method": "get",
+                "required_context": ["workflowStepId"],
+                "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
+                "body": None,
+                "extract": lambda resp, ctx: ctx.update(
+                    {"templateFileParseId": resp[0]["templateFileParse"]["id"]}
+                ),
             },
-        },
-        "TEMPLATE_DATA_MAPPING": {
-            # Instead of direct url, we provide a runner for multiple dependent requests
-            "runner": lambda ctx: execute_api_chain(
-                ctx,
-                [
-                    {
-                        "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE,
-                        "method": "get",
-                        "required_context": ["workflowStepId"],
-                        "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
-                        "body": None,
-                        # store templateFileParseId from first response
-                        "extract": lambda resp, ctx: ctx.update(
-                            {"templateFileParseId": resp[0]["templateFileParse"]["id"]}
-                        ),
-                    },
-                    {
-                        "url": lambda ctx: f"{ApiUrl.DATA_MAPPING.full_url()}?templateFileParseId={ctx['templateFileParseId']}",
-                        "method": "get",
-                        "required_context": ["templateFileParseId"],
-                        "params": lambda ctx: {
-                            "templateFileParseId": ctx["templateFileParseId"]
-                        },
-                        "body": None,
-                    },
-                ],
-            )
-        },
-        "TEMPLATE_FORMAT_VALIDATION": {
-            # Instead of direct url, we provide a runner for multiple dependent requests
-            "runner": lambda ctx: execute_api_chain(
-                ctx,
-                [
-                    {
-                        "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE,
-                        "method": "get",
-                        "required_context": ["workflowStepId"],
-                        "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
-                        "body": None,
-                        # store templateFileParseId from first response
-                        "extract": lambda resp, ctx: ctx.update(
-                            {"templateFileParseId": resp[0]["templateFileParse"]["id"]}
-                        ),
-                    },
-                    {
-                        "url": lambda ctx: f"{ApiUrl.TEMPLATE_FORMAT_VALIDATION.full_url()}/{ctx['templateFileParseId']}",
-                        "method": "get",
-                        "required_context": ["templateFileParseId"],
-                        "params": lambda _: {},
-                        "body": None,
-                    },
-                ],
-            )
-        },
+            {
+                "url": lambda ctx: f"{ApiUrl.DATA_MAPPING.full_url()}?templateFileParseId={ctx['templateFileParseId']}",
+                "method": "get",
+                "required_context": ["templateFileParseId"],
+                "params": lambda ctx: {"templateFileParseId": ctx["templateFileParseId"]},
+                "body": None,
+            },
+        ],
+        "TEMPLATE_FORMAT_VALIDATION": [
+            {
+                "url": ApiUrl.WORKFLOW_TEMPLATE_PARSE.full_url(),
+                "method": "get",
+                "required_context": ["workflowStepId"],
+                "params": lambda ctx: {"workflowStepId": ctx["workflowStepId"]},
+                "body": None,
+                "extract": lambda resp, ctx: ctx.update(
+                    {"templateFileParseId": resp[0]["templateFileParse"]["id"]}
+                ),
+            },
+            {
+                "url": lambda ctx: f"{ApiUrl.TEMPLATE_FORMAT_VALIDATION.full_url()}/{ctx['templateFileParseId']}",
+                "method": "get",
+                "required_context": ["templateFileParseId"],
+                "params": lambda _: {},
+                "body": None,
+            },
+        ],
     }
 
-    for key, config in step_map.items():
+    for key, calls in step_map.items():
         if key in step_name_upper:
-            # Case 1: multi-step runner
-            if "runner" in config:
-                return {"runner": config["runner"]}
-
-            # Check required context keys
-            missing_keys = [k for k in config["required_context"] if k not in context]
-            if missing_keys:
-                raise RuntimeError(
-                    f"Missing context keys for step '{step_name_upper}': {missing_keys}"
-                )
-
-            return {
-                "url": (
-                    config["url"](context)
-                    if callable(config["url"])
-                    else config["url"].full_url()
-                ),
-                "method": config["method"],
-                "params": config["params"](context),
-                "body": (
-                    config["body"](context)
-                    if callable(config["body"])
-                    else config["body"]
-                ),
-            }
+            return calls
 
     return None
 

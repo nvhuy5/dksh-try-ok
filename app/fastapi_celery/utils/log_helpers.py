@@ -54,7 +54,7 @@ def logging_config(logger: str) -> None:
                 f"{logger}": {
                     "level": LOG_LEVEL,
                     "handlers": ["console"],
-                    "propagate": True,
+                    "propagate": False,
                 },
             },
             "root": {
