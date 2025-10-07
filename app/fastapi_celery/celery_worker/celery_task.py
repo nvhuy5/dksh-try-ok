@@ -276,6 +276,10 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
         )
 
         # === Finish session ===
+        _ = call_workflow_session_finish(
+            context_data=context_data,
+            tracking_model=tracking_model,
+        )
 
         return context_data
 
@@ -298,7 +302,7 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
             },
         )
 
-        # call_workflow_step_start
+        # call_workflow_step_finish
 
         # call_workflow_session_finish
 

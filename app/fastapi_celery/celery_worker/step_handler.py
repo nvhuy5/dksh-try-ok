@@ -560,33 +560,33 @@ def get_context_api(step_name: str, context: Dict[str, Any]) -> Optional[Dict[st
     return None
 
 
-async def execute_api_chain(context: Dict[str, Any], steps: List[Dict[str, Any]]):
-    """
-    Execute dependent API calls sequentially.
+# async def execute_api_chain(context: Dict[str, Any], steps: List[Dict[str, Any]]):
+#     """
+#     Execute dependent API calls sequentially.
 
-    Args:
-        context: Shared data across steps.
-        steps: List of step configs.
+#     Args:
+#         context: Shared data across steps.
+#         steps: List of step configs.
 
-    Returns:
-        Response from the last API call.
-    """
-    results = []
-    for step in steps:
-        url = step["url"](context) if callable(step["url"]) else step["url"].full_url()
-        missing_keys = [k for k in step["required_context"] if k not in context]
-        if missing_keys:
-            raise RuntimeError(f"Missing context keys: {missing_keys}")
+#     Returns:
+#         Response from the last API call.
+#     """
+#     results = []
+#     for step in steps:
+#         url = step["url"](context) if callable(step["url"]) else step["url"].full_url()
+#         missing_keys = [k for k in step["required_context"] if k not in context]
+#         if missing_keys:
+#             raise RuntimeError(f"Missing context keys: {missing_keys}")
 
-        # Use your BEConnector instead of requests
-        logger.info(f"Running chain step: {url} with step {step}\ncontext: {context}")
-        connector = BEConnector(url, params=step["params"](context))
-        resp = await connector.get()
-        results.append(resp)
-        logger.info(f"Chain step response from {url}:\n{resp}")
+#         # Use your BEConnector instead of requests
+#         logger.info(f"Running chain step: {url} with step {step}\ncontext: {context}")
+#         connector = BEConnector(url, params=step["params"](context))
+#         resp = await connector.get()
+#         results.append(resp)
+#         logger.info(f"Chain step response from {url}:\n{resp}")
 
-        if "extract" in step:
-            step["extract"](resp, context)
+#         if "extract" in step:
+#             step["extract"](resp, context)
 
-    # return the last response
-    return results[-1]
+#     # return the last response
+#     return results[-1]

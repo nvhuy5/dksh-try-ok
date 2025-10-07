@@ -3,7 +3,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 from typing import Callable, Awaitable
 import uuid
-from .request_context import set_context_values
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
@@ -26,10 +25,6 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
-
-        # Set context with request_id (you can pass document_number later if needed)
-        # set_context_values(request_id=request_id)
-
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
