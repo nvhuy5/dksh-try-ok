@@ -10,7 +10,7 @@ from models.class_models import SourceType, DocumentType
 from models.tracking_models import ServiceLog, LogType, TrackingModel
 
 import config_loader
-from utils.middlewares.request_context import get_context_value, set_context_values
+from utils.middlewares.request_context import get_context_value
 
 # ===
 # === Logging Setup ===

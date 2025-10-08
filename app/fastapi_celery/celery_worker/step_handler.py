@@ -144,18 +144,6 @@ def extract_to_wrapper(
         context: Dict[str, Any], result: Dict[str, Any], ctx_key: str, result_key: str
     ) -> None:
         try:
-            # request_id = get_context_value("request_id")
-            # traceability_context_values = {
-            #     key: val
-            #     for key in [
-            #         "file_path",
-            #         "workflow_name",
-            #         "workflow_id",
-            #         "document_number",
-            #         "document_type",
-            #     ]
-            #     if (val := get_context_value(key)) is not None
-            # }
             return func(context, result, ctx_key, result_key)
         except Exception as e:
             context[ctx_key] = None
@@ -211,15 +199,14 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
     step_config = PROCESS_DEFINITIONS.get(step_name)
     if not step_config:
         raise ValueError(f"[{context_data.request_id}] The step [{step_name}] is not yet defined")
-    
+
     s3_key_prefix = build_s3_key_prefix(file_processor, context_data, step, step_config)
     if step_config.require_data_output:
         context_data.s3_key_prefix = s3_key_prefix
     
     data_input = (
-        context_data.data_input
-        if hasattr(step_config, "data_input")
-        and context_data.model_dump().get(step_config.data_input)
+        getattr(context_data, step_config.data_input, None)
+        if isinstance(getattr(step_config, "data_input", None), str)
         else None
     )
 
@@ -237,7 +224,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
     config_api_records = []
     if not context_api:
         logger.warning(f"[{context_data.request_id}] There is no API context for this step: {step_name}")
-    else:            
+    else:
         for call_def in context_api:
             # validate context
             missing = [k for k in call_def["required_context"] if k not in config_api_ctx]
@@ -249,7 +236,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
             params = call_def["params"](config_api_ctx) if callable(call_def["params"]) else call_def["params"]
             body = call_def["body"](config_api_ctx) if callable(call_def["body"]) else call_def["body"]
 
-            connector = BEConnector(url, params=params, body_data=body)
+            connector = BEConnector(api_url=url, body_data=body, params=params)
             response = (connector.get() if method == "get" else connector.post())
 
             # extract dynamic values if needed
@@ -272,6 +259,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
     step_result_in_s3 = file_processor.check_step_result_exists_in_s3(
         task_id=context_data.request_id,
         step_name=step_name,
+        s3_key_prefix=s3_key_prefix,
         rerun_attempt=file_processor.tracking_model.rerun_attempt,
     )
 
@@ -280,14 +268,13 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
             is_done = step_result_in_s3.step_status == "1"
         else:
             is_done = False
-            
+
     context_data.is_done = is_done
-    
+
     logger.info(
         f"[{context_data.request_id}] Step '{step_name}' already completed in S3 (is_done={is_done}). "
         f"Result: {step_result_in_s3}"
     )
-
 
     if is_done:
         logger.info(
@@ -311,7 +298,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
             return step_output_data
         else:
             return
-    
+
     logger.info(
         f"[{context_data.request_id}] Executing step: {step_name} | already completed in S3 (is_done={is_done})"
         + (f" | rerun_attempt: {file_processor.tracking_model.rerun_attempt}" if file_processor.tracking_model.rerun_attempt is not None else ""),
@@ -354,8 +341,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
         # Call method (await if coroutine)
         call_kwargs = kwargs or {}
         result = (
-            # await method(*args, **call_kwargs)
-            asyncio.run(method(*args, **call_kwargs))
+            method(*args, **call_kwargs)
             if asyncio.iscoroutinefunction(method)
             else method(*args, **call_kwargs)
         )
@@ -426,7 +412,6 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
             },
         )
         raise
-
 
 
 def build_s3_key_prefix(
@@ -558,35 +543,3 @@ def get_context_api(step_name: str, context: Dict[str, Any]) -> Optional[Dict[st
             return calls
 
     return None
-
-
-# async def execute_api_chain(context: Dict[str, Any], steps: List[Dict[str, Any]]):
-#     """
-#     Execute dependent API calls sequentially.
-
-#     Args:
-#         context: Shared data across steps.
-#         steps: List of step configs.
-
-#     Returns:
-#         Response from the last API call.
-#     """
-#     results = []
-#     for step in steps:
-#         url = step["url"](context) if callable(step["url"]) else step["url"].full_url()
-#         missing_keys = [k for k in step["required_context"] if k not in context]
-#         if missing_keys:
-#             raise RuntimeError(f"Missing context keys: {missing_keys}")
-
-#         # Use your BEConnector instead of requests
-#         logger.info(f"Running chain step: {url} with step {step}\ncontext: {context}")
-#         connector = BEConnector(url, params=step["params"](context))
-#         resp = await connector.get()
-#         results.append(resp)
-#         logger.info(f"Chain step response from {url}:\n{resp}")
-
-#         if "extract" in step:
-#             step["extract"](resp, context)
-
-#     # return the last response
-#     return results[-1]

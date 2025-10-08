@@ -59,7 +59,6 @@ app.include_router(api_file_processor.router)
 # Run the app with uvicorn (only when this script is executed directly)
 if __name__ == "__main__":  # pragma: no cover
     import uvicorn
-
     uvicorn.run(
         app, host="0.0.0.0", port=int(config_loader.get_env_variable("APP_PORT", 8000))
     )

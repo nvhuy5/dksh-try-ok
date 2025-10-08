@@ -80,13 +80,13 @@ def task_execute(self, data: dict) -> str:
             extra={
                 "service": ServiceLog.TASK_EXECUTION,
                 "log_type": LogType.TASK,
-                "data": tracking_model,
+                "data": tracking_model.model_dump(),
             },
         )
         ctx = contextvars.copy_context()
-        ctx.run(lambda: handle_task(tracking_model))
         # ctx.run(lambda: asyncio.run(handle_task(tracking_model)))
-        
+        ctx.run(handle_task(tracking_model))
+
         return "Task completed"
     except Retry:
         logger.warning(f"[{tracking_model.request_id}] Task is retrying...")
@@ -105,18 +105,18 @@ def task_execute(self, data: dict) -> str:
                 "data": tracking_model,
             },
         )
-        try:
-            raise self.retry(exc=e, countdown=5)
-        except MaxRetriesExceededError:
-            logger.critical(
-                f"[{tracking_model.request_id}] Maximum retries exceeded for task.",
-                extra={
-                    "service": ServiceLog.TASK_EXECUTION,
-                    "log_type": LogType.ERROR,
-                    "data": tracking_model,
-                },
-            )
-            raise
+        # try:
+        #     raise self.retry(exc=e, countdown=5)
+        # except MaxRetriesExceededError:
+        #     logger.critical(
+        #         f"[{tracking_model.request_id}] Maximum retries exceeded for task.",
+        #         extra={
+        #             "service": ServiceLog.TASK_EXECUTION,
+        #             "log_type": LogType.ERROR,
+        #             "data": tracking_model,
+        #         },
+        #     )
+        #     raise
 
 
 def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
@@ -146,7 +146,7 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
             "data": tracking_model,
         },
     )
-
+    
     redis_connector = RedisConnector()
     file_processor = ProcessorBase(tracking_model)
 
@@ -176,7 +176,7 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
             "data": workflow_model,
         },
     )
-    
+
     if not workflow_model:
         return context_data
 
@@ -241,24 +241,26 @@ def handle_task(tracking_model: TrackingModel) -> Dict[str, Any]:
                 step=step,
                 step_result=step_result
             )
-            
+
             update_step_result_output(step_result, context_data, file_processor.document_type)
-            
+
             if not context_data.is_done:
                 logger.info(f"{step.stepName} - step_result type: {type(step_result)}")
-                file_base = str(file_processor.file_record["file_name"]).removesuffix(file_processor.file_record["file_extension"])
+                file_base = str(file_processor.file_record["file_name"]).removesuffix(
+                    file_processor.file_record["file_extension"])
                 context_data.s3_key_prefix = f"{context_data.s3_key_prefix}/{file_base}.json"
-                
+
                 # Update the inner output (MasterDataParsed)
                 updated_output = step_result.output.copy(
                     update={"json_output": context_data.s3_key_prefix}
                 )
-                
+
                 # Update the step_result (StepOutput) with the new output
                 step_result = step_result.model_copy(update={"output": updated_output})
                 # Write step result to S3
-                file_processor.write_json_to_s3(step_result, s3_key_prefix=context_data.s3_key_prefix, rerun_attempt=tracking_model.rerun_attempt)
-                
+                file_processor.write_json_to_s3(
+                    step_result, s3_key_prefix=context_data.s3_key_prefix, rerun_attempt=tracking_model.rerun_attempt)
+
                 logger.info(
                     f"[{tracking_model.request_id}] Stored step data output to S3 at {context_data.s3_key_prefix}.",
                     extra={
@@ -322,10 +324,8 @@ def get_workflow_filter(
         project=tracking_model.project_name,
         source=tracking_model.source_name,
     ))
-    workflow_response = BEConnector(
-        ApiUrl.WORKFLOW_FILTER.full_url(), 
-        body_data=body_data
-    ).post()
+    workflow_connector = BEConnector(ApiUrl.WORKFLOW_FILTER.full_url(), body_data=body_data)
+    workflow_response = workflow_connector.post()
     if not workflow_response:
         raise RuntimeError(f"[{tracking_model.request_id}] Failed to fetch workflow")
 
@@ -334,7 +334,7 @@ def get_workflow_filter(
         raise RuntimeError(
             f"[{tracking_model.request_id}] Failed to initialize WorkflowModel from response"
         )
-        
+
     context_data.workflow_detail = WorkflowDetailConfig()
     context_data.workflow_detail.filter_api.url = ApiUrl.WORKFLOW_FILTER.full_url()
     context_data.workflow_detail.filter_api.request = body_data
@@ -357,10 +357,8 @@ def call_workflow_session_start(
         celeryId=tracking_model.request_id,
         filePath=tracking_model.file_path,
     ))
-    session_response = BEConnector(
-        ApiUrl.WORKFLOW_SESSION_START.full_url(), 
-        body_data=body_data
-    ).post()
+    session_connector = BEConnector(ApiUrl.WORKFLOW_SESSION_START.full_url(), body_data=body_data)
+    session_response = session_connector.post()
     if not session_response:
         raise RuntimeError(
             f"[{tracking_model.request_id}] Failed to fetch workflow_session_start"
@@ -383,17 +381,15 @@ def call_workflow_session_finish(
     context_data: ContextData,
     tracking_model: TrackingModel,
 ):
-    
+
     logger.info(f"[{tracking_model.request_id}] Finish session")
     body_data = {
-        "id": context_data.workflow_detail.metadata_api.session_start_api.response.id, 
-        "code": StatusEnum.SUCCESS, 
+        "id": context_data.workflow_detail.metadata_api.session_start_api.response.id,
+        "code": StatusEnum.SUCCESS,
         "message": ""
     }
-    session_response = BEConnector(
-        ApiUrl.WORKFLOW_SESSION_FINISH.full_url(), 
-        body_data=body_data
-    ).post()
+    session_connector = BEConnector(ApiUrl.WORKFLOW_SESSION_FINISH.full_url(), body_data=body_data)
+    session_response = session_connector.post()
     if not session_response:
         raise RuntimeError(
             f"[{tracking_model.request_id}] Failed to fetch workflow_session_finish"
@@ -416,9 +412,8 @@ def call_workflow_step_start(
         sessionId=context_data.workflow_detail.metadata_api.session_start_api.response.id,
         stepId=step.workflowStepId,
     ))
-    start_step_response = BEConnector(
-        ApiUrl.WORKFLOW_STEP_START.full_url(), body_data
-    ).post()
+    start_step_connector = BEConnector(ApiUrl.WORKFLOW_STEP_START.full_url(), body_data)
+    start_step_response = start_step_connector.post()
     if not start_step_response:
         raise RuntimeError(
             f"[{context_data.request_id}] Failed to fetch workflow_step_start"
@@ -463,12 +458,13 @@ def call_workflow_step_finish(
         "dataInput": "data_input",
         "dataOutput": f"{context_data.s3_key_prefix}/",
     }
-    finish_step_response = BEConnector(ApiUrl.WORKFLOW_STEP_FINISH.full_url(), body_data=body_data).post()
-    
+    finish_step_connector = BEConnector(ApiUrl.WORKFLOW_STEP_FINISH.full_url(), body_data=body_data)
+    finish_step_response = finish_step_connector.post()
+
     context_data.step_detail[step.stepOrder - 1].metadata_api.Step_finish_api.url = ApiUrl.WORKFLOW_STEP_FINISH.full_url()
     context_data.step_detail[step.stepOrder - 1].metadata_api.Step_finish_api.request = body_data
     context_data.step_detail[step.stepOrder - 1].metadata_api.Step_finish_api.response = finish_step_response
-    
+
     return finish_step_response
 
 

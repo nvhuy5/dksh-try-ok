@@ -40,24 +40,6 @@ class S3Connector:
             bucket_name (str): Name of the S3 bucket to connect to.
             region_name (str, optional): AWS region name. Defaults to 'ap-southeast-1' if not specified.
         """
-        # # === Try to retrieve all traceability attributes when an object created
-        # self.request_id = get_context_value("request_id")
-        # self.traceability_context_values = {
-        #     key: val
-        #     for key in [
-        #         "file_path",
-        #         "workflow_name",
-        #         "workflow_id",
-        #         "document_number",
-        #         "document_type",
-        #     ]
-        #     if (val := get_context_value(key)) is not None
-        # }
-        # logger.debug(
-        #     f"Function: {__name__}\n"
-        #     f"RequestID: {self.request_id}\n"
-        #     f"TraceabilityContext: {self.traceability_context_values}"
-        # )
 
         self.bucket_name = bucket_name.strip()
         self.region_name = (
@@ -84,24 +66,20 @@ class S3Connector:
             self.client.head_bucket(Bucket=self.bucket_name)
             logger.info(
                 f"Bucket '{self.bucket_name}' already exists.",
-                # extra={
-                #     "service": ServiceLog.FILE_STORAGE,
-                #     "log_type": LogType.ACCESS,
-                #     **self.traceability_context_values,
-                #     "traceability": self.request_id,
-                # },
+                extra={
+                    "service": ServiceLog.FILE_STORAGE,
+                    "log_type": LogType.ACCESS,
+                },
             )
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
                 logger.warning(
                     f"Bucket '{self.bucket_name}' does not exist. Creating...",
-                    # extra={
-                    #     "service": ServiceLog.FILE_STORAGE,
-                    #     "log_type": LogType.ERROR,
-                    #     **self.traceability_context_values,
-                    #     "traceability": self.request_id,
-                    # },
+                    extra={
+                        "service": ServiceLog.FILE_STORAGE,
+                        "log_type": LogType.ERROR,
+                    },
                 )
                 self._create_bucket()
             else:
@@ -110,12 +88,10 @@ class S3Connector:
                 )
                 logger.error(
                     f"Error checking bucket '{self.bucket_name}': {type(e).__name__} - {e}\n{short_tb}",
-                    # extra={
-                    #     "service": ServiceLog.FILE_STORAGE,
-                    #     "log_type": LogType.ERROR,
-                    #     **self.traceability_context_values,
-                    #     "traceability": self.request_id,
-                    # },
+                    extra={
+                        "service": ServiceLog.FILE_STORAGE,
+                        "log_type": LogType.ERROR,
+                    },
                 )
                 raise
 
@@ -139,12 +115,10 @@ class S3Connector:
                 )
             logger.info(
                 f"Bucket '{self.bucket_name}' created successfully.",
-                # extra={
-                #     "service": ServiceLog.FILE_STORAGE,
-                #     "log_type": LogType.ACCESS,
-                #     **self.traceability_context_values,
-                #     "traceability": self.request_id,
-                # },
+                extra={
+                    "service": ServiceLog.FILE_STORAGE,
+                    "log_type": LogType.ACCESS,
+                },
             )
         except ClientError as e:
             short_tb = "".join(
@@ -152,12 +126,10 @@ class S3Connector:
             )
             logger.error(
                 f"Error creating bucket '{self.bucket_name}': {type(e).__name__} - {e}\n{short_tb}",
-                # extra={
-                #     "service": ServiceLog.FILE_STORAGE,
-                #     "log_type": LogType.ERROR,
-                #     **self.traceability_context_values,
-                #     "traceability": self.request_id,
-                # },
+                extra={
+                    "service": ServiceLog.FILE_STORAGE,
+                    "log_type": LogType.ERROR,
+                },
             )
             raise
 

@@ -148,7 +148,7 @@ def write_json_to_s3(
 
 
 def check_step_result_exists_in_s3(
-    self, task_id: str, step_name: str, rerun_attempt: Optional[int] = None
+    self, task_id: str, step_name: str, s3_key_prefix: str, rerun_attempt: Optional[int] = None
 ) -> Optional[MasterDataParsed | PODataParsed]:
     """
     Check S3 for step result.
@@ -159,12 +159,6 @@ def check_step_result_exists_in_s3(
     self.current_output_path = None
 
     try:
-        # Build base prefix
-        materialized_prefix = config_loader.get_config_value(
-            "s3_buckets", "materialized_step_data_loc"
-        )
-        s3_key_prefix = f"{materialized_prefix}/{task_id}/{step_name}"
-
         # Determine base name exactly like write_json_to_s3 does
         if self.file_record.get("object_name"):
             base_name = self.file_record["object_name"].rsplit(".", 1)[0]

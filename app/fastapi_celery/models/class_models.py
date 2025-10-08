@@ -338,12 +338,12 @@ class StepDetail(BaseModel):
 class ContextData(BaseModel):
     request_id: str
     data_input: Any | None = None
-    project_name: str | None = None
-    source_name: str | None = None
-    document_type: DocumentType | None = None
-    source_type: SourceType | None = None
-    step_status: StatusEnum | None = None
-    step_messages: list[str] | None = None
+    # project_name: str | None = None
+    # source_name: str | None = None
+    # document_type: DocumentType | None = None
+    # source_type: SourceType | None = None
+    # step_status: StatusEnum | None = None
+    # step_messages: list[str] | None = None
     step_detail: list[StepDetail] | None = None
     workflow_detail: WorkflowDetailConfig | None = None
     
