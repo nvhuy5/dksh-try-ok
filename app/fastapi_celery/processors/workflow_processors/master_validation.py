@@ -12,7 +12,6 @@ from models.class_models import (
     StepOutput,
 )
 from models.tracking_models import ServiceLog, LogType
-from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
@@ -30,13 +29,6 @@ class MasterValidation:
         self.masterdata_json = masterdata_json
         self.masterdata_headers = self.masterdata_json.headers
         self.masterdata = pd.DataFrame(self.masterdata_json.items)
-        # === Try to retrieve all traceability attributes when an object created
-        # self.request_id = get_context_value("request_id")
-        # self.traceability_context_values = {
-        #     key: val
-        #     for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
-        #     if (val := get_context_value(key)) is not None
-        # }
 
     def header_validation(
         self, header_reference: List[Dict[str, Any]]

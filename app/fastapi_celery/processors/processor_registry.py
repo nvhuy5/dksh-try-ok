@@ -4,7 +4,6 @@ from processors.processor_template import ProcessorTemplate
 from connections.be_connection import BEConnector
 from models.class_models import ApiUrl, DocumentType
 from utils import log_helpers
-from utils.middlewares.request_context import get_context_value
 
 # === Logging ===
 logger_name = "ProcessorRegistry"

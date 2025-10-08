@@ -49,7 +49,7 @@ def extract_metadata(self) -> StepOutput:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.TASK,
-                "data": self.tracking_model,
+                "data": self.tracking_model.model_dump(),
             },
         )
         return StepOutput(
@@ -67,7 +67,7 @@ def extract_metadata(self) -> StepOutput:
             extra={
                 "service": ServiceLog.METADATA_EXTRACTION,
                 "log_type": LogType.ERROR,
-                "data": self.tracking_model,
+                "data": self.tracking_model.model_dump(),
             },
             exc_info=True,
         )

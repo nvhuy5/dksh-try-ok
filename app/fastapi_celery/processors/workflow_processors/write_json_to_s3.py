@@ -1,4 +1,3 @@
-import config_loader
 from typing import Optional, Any, List
 from models.class_models import (
     DocumentType,
@@ -11,7 +10,6 @@ from models.tracking_models import ServiceLog, LogType
 from utils import log_helpers, read_n_write_s3
 import logging
 import traceback
-from utils.middlewares.request_context import get_context_value
 from connections import aws_connection
 from botocore.exceptions import ClientError
 from processors.helpers import template_helper

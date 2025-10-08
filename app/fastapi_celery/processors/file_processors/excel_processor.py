@@ -85,7 +85,7 @@ class ExcelProcessor(excel_helper.ExcelHelper):
             else:
                 i += 1
         return PODataParsed(
-            original_file_path=self.file_path,
+            original_file_path=self.tracking_model.file_path,
             document_type=getattr(self, "document_type", None),
             po_number=self.po_number,
             items=items,

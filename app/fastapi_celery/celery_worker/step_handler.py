@@ -163,16 +163,14 @@ def extract_to_wrapper(
 
 
 @extract_to_wrapper
-def extract(
-    context: Dict[str, Any], result: Dict[str, Any], ctx_key: str, result_key: str
-) -> None:
+def extract(context_data: ContextData, result: Dict[str, Any], ctx_key: str, result_key: str) -> None:
     """
     Extracts a value from `result[result_key]` and assigns it to `context[ctx_key]`.
 
     Returns:
         None
     """
-    context[ctx_key] = result[result_key]
+    setattr(context_data, ctx_key, result[result_key])
 
 
 # Suppress Cognitive Complexity warning due to step-specific business logic  # NOSONAR

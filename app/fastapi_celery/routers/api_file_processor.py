@@ -71,7 +71,7 @@ async def process_file(data: FilePathRequest, http_request: Request) -> Dict[str
             extra={
                 "service": ServiceLog.API_GATEWAY,
                 "log_type": LogType.ACCESS,
-                "data": data,
+                "data": data.model_dump(),
             },
         )
         return {

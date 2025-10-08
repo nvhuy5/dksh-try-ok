@@ -8,13 +8,11 @@ from utils import log_helpers
 from connections.be_connection import BEConnector
 from models.class_models import (
     ApiUrl,
-    DocumentType,
     StatusEnum,
     StepOutput,
     PODataParsed,
 )
 from models.tracking_models import ServiceLog, LogType
-from utils.middlewares.request_context import get_context_value
 
 # === logging setup ===
 logger_name = f"Workflow Processor - {__name__}"
@@ -31,13 +29,6 @@ class TemplateValidation:
     def __init__(self, po_json: PODataParsed):
         self.po_json = po_json
         self.items = po_json.items if isinstance(po_json.items, list) else [po_json.items]
-
-        # self.request_id = get_context_value("request_id")
-        # self.traceability_context_values = {
-        #     key: val
-        #     for key in ["file_path", "workflow_name", "workflow_id", "document_number"]
-        #     if (val := get_context_value(key)) is not None
-        # }
 
     def _check_required(self, val: Any, required: bool, allow_empty: bool, col_key: str, idx: int) -> str | None:
         if required and not allow_empty and (val is None or str(val).strip() == ""):

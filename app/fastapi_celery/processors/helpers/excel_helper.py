@@ -38,7 +38,7 @@ class ExcelHelper:
             file (Path): The path to the Excel file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.tracking_model = TrackingModel
+        self.tracking_model = tracking_model
         self.source = source
         self.rows = self.read_rows()
         self.separator = METADATA_SEPARATOR

@@ -30,7 +30,7 @@ class BaseMasterProcessor:
             file_path (Path): The path to the master data file.
             source (SourceType, optional): The source type, defaults to SourceType.S3.
         """
-        self.tracking_model = TrackingModel
+        self.tracking_model = tracking_model
         self.file_object = None
         self.source = source
 
@@ -47,11 +47,10 @@ class BaseMasterProcessor:
                 and capacity (str).
         """
         try:
-            self.file_object = ext_extraction.FileExtensionProcessor(tracking_model=self.tracking_model, source=self.source)
-            file_object = self.file_object
+            file_object = ext_extraction.FileExtensionProcessor(tracking_model=self.tracking_model, source=self.source)
             document_type = file_object._get_document_type()
             capacity = file_object._get_file_capacity()
-            original_file_path = self.file_path
+            original_file_path = self.tracking_model.file_path
 
             text = self._read_file_content(file_object)
             headers, items = self._parse_text_blocks(text)

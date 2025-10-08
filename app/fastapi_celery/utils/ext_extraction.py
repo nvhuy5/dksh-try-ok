@@ -276,10 +276,6 @@ class FileExtensionProcessor:
                 else DocumentType.ORDER
             )
 
-            # Safely publish the document_type only if request_id is present
-            # if self.tracking_model.request_id is not None:
-            #     set_context_values(document_type=document_type)
-
             return document_type
 
         except Exception as e:

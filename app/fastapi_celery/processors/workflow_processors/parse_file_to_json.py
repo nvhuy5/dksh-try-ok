@@ -4,7 +4,6 @@ from utils import log_helpers
 from models.class_models import StatusEnum, StepOutput
 from models.tracking_models import ServiceLog, LogType
 from processors.processor_registry import ProcessorRegistry
-from utils.middlewares.request_context import get_context_value
 
 # ===
 # Set up logging
@@ -28,24 +27,6 @@ async def parse_file_to_json(self) -> StepOutput:  # pragma: no cover  # NOSONAR
         StepOutput: Parsed JSON data if successful, None otherwise.
     """
     try:
-        # # === Try to retrieve all traceability attributes when an object created
-        # self.request_id = get_context_value("request_id")
-        # self.traceability_context_values = {
-        #     key: val
-        #     for key in [
-        #         "file_path",
-        #         "workflow_name",
-        #         "workflow_id",
-        #         "document_number",
-        #         "document_type",
-        #     ]
-        #     if (val := get_context_value(key)) is not None
-        # }
-        # logger.debug(
-        #     f"Function: {__name__}\n"
-        #     f"RequestID: {self.request_id}\n"
-        #     f"TraceabilityContext: {self.traceability_context_values}"
-        # )
 
         # Handle document type processor for Master Data and PO Data
         processor_instance = await ProcessorRegistry.get_processor_for_file(self)

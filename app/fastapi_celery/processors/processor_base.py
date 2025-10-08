@@ -48,6 +48,8 @@ class ProcessorBase:
         self.tracking_model = tracking_model
         self.current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         self._register_workflow_processors()
+
+    def run(self):
         self.extract_metadata()
 
     def _register_workflow_processors(self) -> None:

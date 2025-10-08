@@ -76,7 +76,7 @@ class ExcelMasterProcessor(excel_helper.ExcelHelper):
                 i = next_index if table_block else i + 1
 
             return MasterDataParsed(
-                original_file_path=self.file_path,
+                original_file_path=self.tracking_model.file_path,
                 headers=headers,
                 document_type=getattr(self, "document_type", None),
                 items=items,
@@ -91,7 +91,7 @@ class ExcelMasterProcessor(excel_helper.ExcelHelper):
             )
             print(f"Error while parsing file to JSON: {e}")
             return MasterDataParsed(
-                original_file_path=self.file_path,
+                original_file_path=self.tracking_model.file_path,
                 headers=[],
                 document_type=getattr(self, "document_type", None),
                 items=[],
