@@ -113,7 +113,7 @@ networks:
     name: celery_worker_network
     driver: bridge
   shared_network:
-    external: true
+    external: false
 
 volumes:
   redis_data:

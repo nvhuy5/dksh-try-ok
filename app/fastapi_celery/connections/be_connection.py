@@ -1,4 +1,5 @@
 import httpx
+import certifi
 from typing import Optional, Dict, Any
 import traceback
 import logging
@@ -47,78 +48,117 @@ class BEConnector:
         self.params = params or {}
         self.metadata = {}
 
-    def post(self) -> Optional[Dict[str, Any]]:
+    async def post(self) -> Optional[Dict[str, Any]]:
         """Send a POST request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return self._request("POST")
+        return await self._request("POST")
 
-    def get(self) -> Optional[Dict[str, Any]]:
+    async def get(self) -> Optional[Dict[str, Any]]:
         """Send a GET request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return self._request("GET")
+        return await self._request("GET")
 
-    def put(self) -> Optional[Dict[str, Any]]:
+    async def put(self) -> Optional[Dict[str, Any]]:
         """Send a PUT request to the API endpoint.
 
         Returns:
             Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
         """
-        return self._request("PUT")
+        return await self._request("PUT")
 
-    # async def _request(self, method: str) -> Optional[Dict[str, Any]]:
-    #     """Send an HTTP request to the API endpoint using the specified method.
+    async def _request(self, method: str) -> Optional[Dict[str, Any]]:
+        """Send an HTTP request to the API endpoint using the specified method.
 
-    #     Args:
-    #         method (str): HTTP method to use ('POST', 'GET', or 'PUT').
+        Args:
+            method (str): HTTP method to use ('POST', 'GET', or 'PUT').
 
-    #     Returns:
-    #         Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
-    #     """
-    #     async with httpx.AsyncClient(verify=False) as client:
-    #         try:
-    #             headers = {"X-Token": API_KEY}
-    #             response = await client.request(
-    #                 method,
-    #                 self.api_url,
-    #                 headers=headers,
-    #                 json=self.body_data,
-    #                 params=self.params,
-    #             )
-    #             response.raise_for_status()
-    #             response_data = response.json()
-    #             return response_data.get("data", {})
-    #         except httpx.HTTPStatusError as e:
-    #             short_tb = "".join(
-    #                 traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-    #             )
-    #             logger.error(
-    #                 f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
-    #                 extra={
-    #                     "service": ServiceLog.DATABASE,
-    #                     "log_type": LogType.ERROR,
-    #                 },
-    #             )
-    #         except Exception as e:
-    #             short_tb = "".join(
-    #                 traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-    #             )
-    #             logger.exception(
-    #                 f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
-    #                 extra={
-    #                     "service": ServiceLog.DATABASE,
-    #                     "log_type": LogType.ERROR,
-    #                 },
-    #             )
-    #     return None
-    
+        Returns:
+            Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                headers = {"X-Token": API_KEY}
+                response = await client.request(
+                    method,
+                    self.api_url,
+                    headers=headers,
+                    json=self.body_data,
+                    params=self.params,
+                )
+                response.raise_for_status()
+                response_data = response.json()
+                return response_data.get("data", {})
+            # except httpx.HTTPStatusError as e:
+            #     short_tb = "".join(
+            #         traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+            #     )
+            #     logger.error(
+            #         f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
+            #         extra={
+            #             "service": ServiceLog.DATABASE,
+            #             "log_type": LogType.ERROR,
+            #         },
+            #     )
+            # except Exception as e:
+            #     short_tb = "".join(
+            #         traceback.format_exception(type(e), e, e.__traceback__, limit=3)
+            #     )
+            #     logger.exception(
+            #         f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
+            #         extra={
+            #             "service": ServiceLog.DATABASE,
+            #             "log_type": LogType.ERROR,
+            #         },
+            #     )
+            
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    "API request failed with HTTPStatusError",
+                    extra={
+                        "service": ServiceLog.DATABASE,
+                        "log_type": LogType.ERROR,
+                        "url": self.api_url,
+                        "method": method,
+                        "params": self.params,
+                        "body": self.body_data,
+                        "status_code": e.response.status_code if e.response else None,
+                        "response_text": e.response.text if e.response else None,
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    },
+                )
+
+            except Exception as e:
+                short_tb = "".join(
+                    traceback.format_exception(type(e), e, e.__traceback__, limit=15)
+                )
+                logger.error(
+                    "API request raised unexpected exception",
+                    exc_info=True,  # tự động thêm stack_trace vào ECS log
+                    extra={
+                        "service": ServiceLog.DATABASE,
+                        "log_type": LogType.ERROR,
+                        "url": self.api_url,
+                        "method": method,
+                        "params": self.params,
+                        "body": self.body_data,
+                        "error_type": type(e).__name__,
+                        "error_message": str(e) or "No message",
+                        "error_stack_trace": short_tb.strip(),
+                    },
+                )
+            
+        return None
+        
     # def _request(self, method: str) -> Optional[Dict[str, Any]]:
-    #     """Send an HTTP request to the API endpoint using the specified method.
+    #     """
+    #     Send an HTTP request to the API endpoint using the specified method.
 
     #     Args:
     #         method (str): HTTP method to use ('POST', 'GET', or 'PUT').
@@ -127,7 +167,7 @@ class BEConnector:
     #         Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
     #     """
     #     try:
-    #         with httpx.Client(verify=False) as client:
+    #         with httpx.Client(verify=False, timeout=30.0) as client:
     #             headers = {"X-Token": API_KEY}
     #             response = client.request(
     #                 method,
@@ -137,90 +177,41 @@ class BEConnector:
     #                 params=self.params,
     #             )
     #             response.raise_for_status()
+
     #             response_data = response.json()
     #             return response_data.get("data", {})
+
     #     except httpx.HTTPStatusError as e:
-    #         short_tb = "".join(
-    #             traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-    #         )
+    #         log_context = {
+    #             "service": ServiceLog.DATABASE,
+    #             "log_type": LogType.ERROR,
+    #             "method": method,
+    #             "url": str(e.request.url),
+    #             "status_code": e.response.status_code,
+    #             "response_text": e.response.text[:500],
+    #         }
     #         logger.error(
-    #             f"{method} error {self.api_url}: {e.response.status_code} - {e.response.text}!\n{short_tb}",
-    #             extra={
-    #                 "service": ServiceLog.DATABASE,
-    #                 "log_type": LogType.ERROR,
-    #             },
+    #             f"{method} request failed with HTTP {e.response.status_code}",
+    #             extra={"data": log_context},
     #         )
+
     #     except Exception as e:
-    #         short_tb = "".join(
-    #             traceback.format_exception(type(e), e, e.__traceback__, limit=3)
-    #         )
+    #         log_context = {
+    #             "service": ServiceLog.DATABASE,
+    #             "log_type": LogType.ERROR,
+    #             "method": method,
+    #             "url": self.api_url,
+    #             "params": self.params,
+    #             "body": self.body_data,
+    #             "error": str(e),
+    #             "trace": "".join(traceback.format_exception(type(e), e, e.__traceback__, limit=3)),
+    #         }
     #         logger.exception(
-    #             f"Unexpected error during {method} request: {str(e)}!\n{short_tb}",
-    #             extra={
-    #                 "service": ServiceLog.DATABASE,
-    #                 "log_type": LogType.ERROR,
-    #             },
+    #             f"Unexpected error during {method} request",
+    #             extra={"data": log_context},
     #         )
+
     #     return None
-    
-    def _request(self, method: str) -> Optional[Dict[str, Any]]:
-        """
-        Send an HTTP request to the API endpoint using the specified method.
-
-        Args:
-            method (str): HTTP method to use ('POST', 'GET', or 'PUT').
-
-        Returns:
-            Optional[Dict[str, Any]]: Response data under the 'data' key, or None if request fails.
-        """
-        try:
-            with httpx.Client(verify=False, timeout=30.0) as client:
-                headers = {"X-Token": API_KEY}
-                response = client.request(
-                    method,
-                    self.api_url,
-                    headers=headers,
-                    json=self.body_data,
-                    params=self.params,
-                )
-                response.raise_for_status()
-
-                response_data = response.json()
-                return response_data.get("data", {})
-
-        except httpx.HTTPStatusError as e:
-            # Tạo context chung cho log
-            log_context = {
-                "service": ServiceLog.DATABASE,
-                "log_type": LogType.ERROR,
-                "method": method,
-                "url": str(e.request.url),
-                "status_code": e.response.status_code,
-                "response_text": e.response.text[:500],  # tránh log dài quá
-            }
-            logger.error(
-                f"{method} request failed with HTTP {e.response.status_code}",
-                extra={"data": log_context},
-            )
-
-        except Exception as e:
-            # Log lỗi bất ngờ
-            log_context = {
-                "service": ServiceLog.DATABASE,
-                "log_type": LogType.ERROR,
-                "method": method,
-                "url": self.api_url,
-                "params": self.params,
-                "body": self.body_data,
-                "error": str(e),
-                "trace": "".join(traceback.format_exception(type(e), e, e.__traceback__, limit=3)),
-            }
-            logger.exception(
-                f"Unexpected error during {method} request",
-                extra={"data": log_context},
-            )
-
-        return None
 
 
     def get_field(self, key: str) -> Optional[Any]:

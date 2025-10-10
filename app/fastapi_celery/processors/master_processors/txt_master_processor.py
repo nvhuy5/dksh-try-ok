@@ -7,7 +7,7 @@ from utils import log_helpers, ext_extraction
 
 # ===
 # Set up logging
-logger_name = "BaseMaster Processor"
+logger_name = "TxtMaster Processor"
 log_helpers.logging_config(logger_name)
 base_logger = logging.getLogger(logger_name)
 
@@ -16,7 +16,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-class BaseMasterProcessor:
+class TxtMasterProcessor:
     """Processor for handling master data files.
 
     Initializes with a file path and source type, parses the file into JSON format,

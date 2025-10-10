@@ -16,7 +16,7 @@ logger = log_helpers.ValidatingLoggerAdapter(base_logger, {})
 # ===
 
 
-async def parse_file_to_json(self) -> StepOutput:  # pragma: no cover  # NOSONAR
+async def parse_file_to_json(self, *args, **kwargs) -> StepOutput:  # pragma: no cover  # NOSONAR
     """Parses a file to JSON based on its document type and extension.
 
     Uses the appropriate processor from `POFileProcessorRegistry` or

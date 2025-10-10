@@ -221,7 +221,7 @@ class ProcessorTemplate(Enum):
     # ================================================================== #
     # === Registry the template to specific processor for masterdata === #
     TXT_MASTERADATA_TEMPLATE = ProcessorMeta(
-        cls=master_processors.base_master_processor.BaseMasterProcessor,
+        cls=master_processors.txt_master_processor.TxtMasterProcessor,
         description="TXT layout processor for metadata template",
         input_type="txt",
         output_type="dataframe",

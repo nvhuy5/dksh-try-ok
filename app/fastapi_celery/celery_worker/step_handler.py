@@ -69,51 +69,43 @@ def raise_if_failed(result: BaseModel, step_name: str) -> None:
     )
 
 
-def has_args(step_config: StepDefinition) -> bool:
-    """
-    Check if the step configuration has non-empty 'args' attribute.
-
-    Args:
-        step_config (object): Step configuration object, expected to have 'args' attribute.
-
-    Returns:
-        bool: True if 'args' attribute exists and is non-empty, False otherwise.
-    """
-    return hasattr(step_config, "args") and step_config.args
+def get_value(ctx: BaseModel | dict, key: str) -> Any:
+        """Safely access values ​​in context (dict or BaseModel)."""
+        if isinstance(ctx, BaseModel):
+            return getattr(ctx, key, None)
+        return ctx.get(key)
 
 
-def resolve_args(step_config: StepDefinition, context: dict, step_name: str) -> tuple:
-    """
-    Resolve and prepare argument list for a step function based on step configuration and context.
+def resolve_args(step_config: StepDefinition, context: BaseModel | dict, step_name: str) -> tuple[list[Any], dict[str, Any]]:
+    args: list[Any] = []
+    kwargs: dict[str, Any] = {}
 
-    Args:
-        step_config (object): Step configuration object with 'args' or 'data_input' attributes.
-        context (dict): Dictionary containing current context data.
-        step_name (str): Name of the step, used for logging.
-
-    Returns:
-        list: List of arguments to be passed to the step function.
-    """
-    args = []
-    kwargs = {}
-
-    if has_args(step_config):
-        args = [context[arg] for arg in step_config.args]
+    # === Positional args
+    if hasattr(step_config, "args") and step_config.args:
+        args = [get_value(context, arg) for arg in step_config.args]
         logger.info(f"[resolve_args] using args for {step_name}: {step_config.args}")
-        context["input_data"] = args[0] if len(args) == 1 else args
-    elif hasattr(step_config, "data_input") and step_config.data_input:
-        args = [context.get(step_config.data_input)]
-        logger.info(
-            f"[resolve_args] using args for {step_name}: {step_config.data_input}"
-        )
+        if len(args) == 1:
+            # If there is only 1 arg then write "input_data"
+            if isinstance(context, BaseModel):
+                setattr(context, "input_data", args[0])
+            else:
+                context["input_data"] = args[0]
+        else:
+            if isinstance(context, BaseModel):
+                setattr(context, "input_data", args)
+            else:
+                context["input_data"] = args
 
-    # === Keyword arguments
+    elif hasattr(step_config, "data_input") and step_config.data_input:
+        value = get_value(context, step_config.data_input)
+        args = [value]
+        logger.info(f"[resolve_args] using args for {step_name}: {step_config.data_input}")
+
+    # === Keyword args
     if hasattr(step_config, "kwargs") and step_config.kwargs:
         kwargs = {
             arg_name: (
-                context[arg_key]
-                if isinstance(arg_key, str) and arg_key in context
-                else arg_key
+                get_value(context, arg_key) if isinstance(arg_key, str) else arg_key
             )
             for arg_name, arg_key in step_config.kwargs.items()
         }
@@ -125,28 +117,19 @@ def resolve_args(step_config: StepDefinition, context: dict, step_name: str) -> 
 
 
 def extract_to_wrapper(
-    func: Callable[[Dict[str, Any], Dict[str, Any], str, str], None],
-) -> Callable[[Dict[str, Any], Dict[str, Any], str, str], None]:
-    """
-    Decorator that wraps a data extraction function with error handling and logging.
-
-    Args:
-        context (Dict[str, Any]): The shared context within the job.
-        result (Dict[str, Any]): The output data from the previous step.
-        ctx_key (str): The key to assign the value to in `context`.
-        result_key (str): The key to retrieve the value from in `result`.
-
-    Returns:
-        Callable: Wrapped function with exception handling and logging.
-    """
-
-    def wrapper(
-        context: Dict[str, Any], result: Dict[str, Any], ctx_key: str, result_key: str
-    ) -> None:
+    func: Callable[[Any, Any, str, str], None],
+) -> Callable[[Any, Any, str, str], None]:
+    
+    def wrapper(context: Any, result: Any, ctx_key: str, result_key: str) -> None:
         try:
             return func(context, result, ctx_key, result_key)
         except Exception as e:
-            context[ctx_key] = None
+            # Supports both BaseModel and dict
+            if isinstance(context, BaseModel):
+                setattr(context, ctx_key, None)
+            elif isinstance(context, dict):
+                context[ctx_key] = None
+
             short_tb = "".join(
                 traceback.format_exception(type(e), e, e.__traceback__, limit=3)
             )
@@ -155,7 +138,7 @@ def extract_to_wrapper(
                 extra={
                     "service": ServiceLog.DATA_TRANSFORM,
                     "log_type": LogType.ERROR,
-                    "data": context,
+                    "data": context.model_dump() if isinstance(context, BaseModel) else context,
                 },
             )
 
@@ -163,18 +146,17 @@ def extract_to_wrapper(
 
 
 @extract_to_wrapper
-def extract(context_data: ContextData, result: Dict[str, Any], ctx_key: str, result_key: str) -> None:
-    """
-    Extracts a value from `result[result_key]` and assigns it to `context[ctx_key]`.
+def extract(context: dict, result: dict | BaseModel, ctx_key: str, result_key: str) -> None:
+    if isinstance(result, BaseModel):
+        result = result.model_dump()
+    if isinstance(context, BaseModel):
+        context = context.model_dump()
 
-    Returns:
-        None
-    """
-    setattr(context_data, ctx_key, result[result_key])
+    context[ctx_key] = result[result_key]
 
 
 # Suppress Cognitive Complexity warning due to step-specific business logic  # NOSONAR
-def execute_step(file_processor: ProcessorBase, context_data: ContextData, step: WorkflowStep) -> StepOutput:
+async def execute_step(file_processor: ProcessorBase, context_data: ContextData, step: WorkflowStep) -> StepOutput:
     """
     Executes a single workflow step using the given file processor.
 
@@ -197,6 +179,12 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
     step_config = PROCESS_DEFINITIONS.get(step_name)
     if not step_config:
         raise ValueError(f"[{context_data.request_id}] The step [{step_name}] is not yet defined")
+    
+    if not hasattr(file_processor, "workflow_step_ids"):
+        file_processor.workflow_step_ids = {}
+
+    # Save the mapping of step name → step ID
+    file_processor.workflow_step_ids[step.stepName] = step.workflowStepId
 
     s3_key_prefix = build_s3_key_prefix(file_processor, context_data, step, step_config)
     if step_config.require_data_output:
@@ -235,7 +223,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
             body = call_def["body"](config_api_ctx) if callable(call_def["body"]) else call_def["body"]
 
             connector = BEConnector(api_url=url, body_data=body, params=params)
-            response = (connector.get() if method == "get" else connector.post())
+            response = await (connector.get() if method == "get" else connector.post())
 
             # extract dynamic values if needed
             if "extract" in call_def:
@@ -339,7 +327,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
         # Call method (await if coroutine)
         call_kwargs = kwargs or {}
         result = (
-            method(*args, **call_kwargs)
+            await method(*args, **call_kwargs)
             if asyncio.iscoroutinefunction(method)
             else method(*args, **call_kwargs)
         )
@@ -350,6 +338,7 @@ def execute_step(file_processor: ProcessorBase, context_data: ContextData, step:
                 "service": ServiceLog.DATA_TRANSFORM,
                 "log_type": LogType.TASK,
                 "data": file_processor.tracking_model,
+                # "result" : result.model_dump()
             },
         )
 

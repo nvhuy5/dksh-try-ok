@@ -16,7 +16,18 @@ ENV CELERY_MAX_MEMORY_PER_CHILD=2000000
 ENV ARG_ENV=$ARG_ENV
 
 
-RUN apk update && apk add --no-cache bash dos2unix curl
+# RUN apk update && apk add --no-cache bash dos2unix curl
+RUN apk update && apk add --no-cache bash dos2unix curl ca-certificates
+COPY tma-ADCA-CA.crt /usr/local/share/ca-certificates/tma-ADCA-CA.crt
+RUN update-ca-certificates
+
+RUN python3 -m pip install --upgrade certifi \
+    && CERT_PATH=$(python3 -m certifi) \
+    && cat /usr/local/share/ca-certificates/tma-ADCA-CA.crt >> $CERT_PATH \
+    && echo "Custom CA appended to $CERT_PATH"
+
+ENV SSL_CERT_FILE=/usr/local/lib/python3.13/site-packages/certifi/cacert.pem
+
 RUN curl -k -o /usr/local/bin/wait-for-it https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh \
     && chmod +x /usr/local/bin/wait-for-it
 

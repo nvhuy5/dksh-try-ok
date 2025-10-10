@@ -60,8 +60,7 @@ async def process_file(data: FilePathRequest, http_request: Request) -> Dict[str
         if not (data.celery_id and data.celery_id.strip()):
             data.celery_id = getattr(http_request.state, "request_id", str(uuid4()))
 
-        # celery_task.task_execute.apply_async(
-        celery_task.task_execute.apply(
+        celery_task.task_execute.apply_async(
             kwargs={"data": data.model_dump()},
             task_id=data.celery_id,
         )

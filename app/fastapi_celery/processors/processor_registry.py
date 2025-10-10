@@ -68,10 +68,7 @@ class ProcessorRegistry:
                 raise RuntimeError("Missing workflowStepId in context")
 
             # === Call BE ===
-            connector = BEConnector(
-                ApiUrl.WORKFLOW_TEMPLATE_PARSE.full_url(),
-                params={"workflowStepId": step_id},
-            )
+            connector = BEConnector(ApiUrl.WORKFLOW_TEMPLATE_PARSE.full_url(), params={"workflowStepId": step_id})
             response = await connector.get()
 
             try:
@@ -119,7 +116,7 @@ class ProcessorRegistry:
             )
 
             # return processor_enum.create_instance(file_path=file_processor.file_path)
-            return processor_enum.create_instance(file_path=file_processor.tracking_model)
+            return processor_enum.create_instance(tracking_model=file_processor.tracking_model)
 
         except Exception as e:
             logger.error(

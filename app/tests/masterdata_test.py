@@ -17,7 +17,7 @@ from fastapi_celery.models.class_models import (
 )
 from fastapi_celery.models.class_models import PathEncoder, SourceType
 from app.fastapi_celery.processors.master_processors import (
-    base_master_processor,
+    txt_master_processor,
 )
 from app.fastapi_celery.processors.workflow_processors.master_validation import (
     MasterValidation,
@@ -47,7 +47,7 @@ def test_masterdata_itemvalue(base_path: Path) -> None:
         None
     """
     file_path = base_path / "SAP_Master_data.txt"
-    masterdata = base_master_processor.BaseMasterProcessor(
+    masterdata = txt_master_processor.TxtMasterProcessor(
         file_path, SourceType.LOCAL
     ).parse_file_to_json()
 
@@ -107,7 +107,7 @@ def test_parse_file_to_json_from_s3(mock_processor_class: MagicMock) -> None:
     mock_processor.object_buffer.seek.return_value = None
     mock_processor_class.return_value = mock_processor
 
-    processor = base_master_processor.BaseMasterProcessor(
+    processor = txt_master_processor.TxtMasterProcessor(
         file_path=Path("s3://dummy-path/sample.txt"), source=SourceType.S3
     )
     result = processor.parse_file_to_json()
@@ -132,7 +132,7 @@ def test_parse_file_to_json_from_real_file(base_path: Path) -> None:
         None
     """
     file_path = base_path / "SAP_Master_data.txt"
-    processor = base_master_processor.BaseMasterProcessor(
+    processor = txt_master_processor.TxtMasterProcessor(
         file_path, SourceType.LOCAL
     )
     result = processor.parse_file_to_json()
